@@ -69,7 +69,13 @@ func RemoveSessionID() error {
 func Login(email, password string) (string, error) {
 	url := BaseURL + "/auth/login"
 	body := `{"email": "` + email + `", "password": "` + password + `"}`
-	resp, err := http.Post(url, "application/json", strings.NewReader(body))
+	req, err := http.NewRequest("POST", url, strings.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -96,7 +102,7 @@ func Logout(sessionID string) error {
 	}
 	req.Header.Set("Authorization", "Bearer "+sessionID)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
 		return err
 	}
@@ -118,7 +124,13 @@ func Logout(sessionID string) error {
 func Register(email, password, username string) error {
 	url := BaseURL + "/auth/register"
 	body := fmt.Sprintf(`{"email": "%s", "password": "%s", "username": "%s"}`, email, password, username)
-	resp, err := http.Post(url, "application/json", strings.NewReader(body))
+	req, err := http.NewRequest("POST", url, strings.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
 		return err
 	}
@@ -139,7 +151,12 @@ func Register(email, password, username string) error {
 
 func UsernameAvailable(username string) (bool, error) {
 	url := BaseURL + "/auth/username?username=" + username
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
 		return false, err
 	}
@@ -169,7 +186,12 @@ type Account struct {
 
 func AccountInfo(sessionID string) (Account, error) {
 	url := BaseURL + "/auth/me?session_id=" + sessionID
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return Account{}, err
+	}
+
+	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
 		return Account{}, err
 	}

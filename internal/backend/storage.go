@@ -82,8 +82,7 @@ func Push(form PushForm, zipFile string, anon bool) (string, error) {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// Send request
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -130,7 +129,7 @@ func List(sessionID string) ([]Object, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+sessionID)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +179,7 @@ func Pull(sessionID, key, password string, anon bool) (string, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+sessionID)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
 		return "", err
 	}

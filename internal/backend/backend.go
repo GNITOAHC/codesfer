@@ -2,6 +2,7 @@ package backend
 
 import (
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -35,10 +36,24 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	stringBaseURL := strings.TrimSuffix(strings.TrimSpace(string(byteBaseURL)), "/")
-	_, err = url.ParseRequestURI(string(byteBaseURL))
+	// remove all \r or \n
+	stringBaseURL := string(byteBaseURL)
+	stringBaseURL = strings.ReplaceAll(stringBaseURL, "\r", "")
+	stringBaseURL = strings.ReplaceAll(stringBaseURL, "\n", "")
+	stringBaseURL = strings.TrimSuffix(strings.TrimSpace(stringBaseURL), "/")
+	_, err = url.ParseRequestURI(stringBaseURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 	BaseURL = stringBaseURL
+}
+
+// GetHTTPClient returns an HTTP client that respects proxy environment variables
+// (HTTP_PROXY, HTTPS_PROXY, NO_PROXY)
+func GetHTTPClient() *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+		},
+	}
 }
