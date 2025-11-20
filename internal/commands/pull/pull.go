@@ -16,7 +16,7 @@ func Run(flags Flags, code string) {
 		log.Printf("Not logged in")
 	}
 
-	zip, err := backend.Pull(sessionID, code, flags.Pass)
+	zip, err := backend.Pull(sessionID, code, flags.Pass, sessionID == "")
 	if err != nil {
 		log.Fatalf("Pull failed: %v", err)
 	}

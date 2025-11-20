@@ -90,7 +90,12 @@ func Push(form PushForm, zipFile string, anon bool) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("server returned status: %s", resp.Status)
+		// Read plain text from response body
+		errmsg, err := io.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+		return "", fmt.Errorf("server returned status: %s; error: %s", resp.Status, errmsg)
 	}
 
 	// Parse JSON response
@@ -161,8 +166,14 @@ func generateID(n int) (string, error) {
 
 // Pull a file and automatically extract
 // key: <uid> || <username>/<uid> || <username>/<path>
-func Pull(sessionID, key, password string) (string, error) {
-	url := BaseURL + "/storage/download" + "?key=" + key + "&password=" + password
+func Pull(sessionID, key, password string, anon bool) (string, error) {
+	var prefix string
+	if anon {
+		prefix = "/anonymous/download"
+	} else {
+		prefix = "/storage/download"
+	}
+	url := BaseURL + prefix + "?key=" + key + "&password=" + password
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
