@@ -1,0 +1,107 @@
+name: Cross-Platform Build & Daily Pre-Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  # --------------------------------------------------------
+  # Generate daily release tag (only once)
+  # --------------------------------------------------------
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tagger.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate daily tag
+        id: tagger
+        run: |
+          TODAY=$(date +'%Y-%m-%d')
+          git fetch --tags
+
+          EXISTING=$(git tag | grep "^$TODAY-" | sort -t- -k4 -n || true)
+          if [ -z "$EXISTING" ]; then
+            N=1
+          else
+            LAST=$(echo "$EXISTING" | tail -1 | awk -F- '{print $4}')
+            N=$((LAST + 1))
+          fi
+
+          TAG="$TODAY-$N"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Generated tag: $TAG"
+
+  # --------------------------------------------------------
+  # Cross-platform build matrix
+  # --------------------------------------------------------
+  build:
+    needs: tag
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+        # Windows arm64 not built in Go toolchain yet
+        exclude:
+          - goos: windows
+            goarch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Build cross-platform binary
+        run: |
+          ext=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
+
+          output="codesfer-${{ matrix.goos }}-${{ matrix.goarch }}$ext"
+
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -o "$output" -ldflags "-s -w" ./cmd/codesfer/main.go
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codesfer-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: codesfer-${{ matrix.goos }}-${{ matrix.goarch }}*
+          if-no-files-found: error
+
+  # --------------------------------------------------------
+  # Release job (runs after all binaries finish)
+  # --------------------------------------------------------
+  release:
+    needs: [build, tag]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Create GitHub Pre-Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.tag.outputs.tag }}
+          name: "Automated Cross-Platform Release ${{ needs.tag.outputs.tag }}"
+          prerelease: true
+          files: |
+            dist/**/codesfer-*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
