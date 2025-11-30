@@ -104,7 +104,7 @@ func main() {
 	// pullCmd flags
 	// =============
 	pullCmd.Flags().StringVarP(
-		&pullCmdFlags.Out, "out", "o", "", "Output directory",
+		&pullCmdFlags.Out, "out", "o", ".", "Output directory",
 	)
 	pullCmd.Flags().StringVarP(
 		&pullCmdFlags.Pass, "pass", "p", "", "Password for the code snippet if it is encrypted",
