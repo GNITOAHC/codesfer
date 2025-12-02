@@ -64,22 +64,45 @@ jobs:
         with:
           go-version: "1.24"
 
-      - name: Build cross-platform binary
+      - name: Build and package binary
         run: |
           ext=""
           if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
 
-          output="codesfer-${{ matrix.goos }}-${{ matrix.goarch }}$ext"
+          # --------------
+          # Build CLI
+          # --------------
+          cli_bin=codesfer"$ext"
+          cli_archive=codesfer-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
 
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-            go build -o "$output" -ldflags "-s -w" ./cmd/codesfer/main.go
+            go build -o "$cli_bin" -ldflags "-s -w" ./cmd/codesfer/main.go
 
-      - name: Upload binary artifact
+          gzip -c "$cli_bin" > "$cli_archive"
+
+          # --------------
+          # Build server
+          # --------------
+          server_bin=codeserver"$ext"
+          server_archive=codeserver-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
+
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -o "$server_bin" -ldflags "-s -w" ./cmd/codesfer-server/main.go
+
+          gzip -c "$server_bin" > "$server_archive"
+
+      - name: Upload CLI artifact
         uses: actions/upload-artifact@v4
         with:
           name: codesfer-${{ matrix.goos }}-${{ matrix.goarch }}
           path: codesfer-${{ matrix.goos }}-${{ matrix.goarch }}*
           if-no-files-found: error
+
+      - name: Upload server artifact
+        users: actions/upload-artifact@v4
+        with:
+          name: codeserver-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: codeserver-${{ matrix.goos }}-${{ matrix.goarch }}*
 
   # --------------------------------------------------------
   # Release job (runs after all binaries finish)
@@ -102,6 +125,7 @@ jobs:
           prerelease: true
           files: |
             dist/**/codesfer-*
+            dist/**/codeserver-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
