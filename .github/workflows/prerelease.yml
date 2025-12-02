@@ -72,8 +72,8 @@ jobs:
           # --------------
           # Build CLI
           # --------------
-          cli_bin=codesfer"$ext"
-          cli_archive=codesfer-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
+          cli_bin="codesfer$ext"
+          cli_archive="codesfer-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
 
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o "$cli_bin" -ldflags "-s -w" ./cmd/codesfer/main.go
@@ -83,8 +83,8 @@ jobs:
           # --------------
           # Build server
           # --------------
-          server_bin=codeserver"$ext"
-          server_archive=codeserver-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
+          server_bin="codeserver$ext"
+          server_archive="codeserver-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
 
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o "$server_bin" -ldflags "-s -w" ./cmd/codesfer-server/main.go
@@ -99,7 +99,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload server artifact
-        users: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: codeserver-${{ matrix.goos }}-${{ matrix.goarch }}
           path: codeserver-${{ matrix.goos }}-${{ matrix.goarch }}*
