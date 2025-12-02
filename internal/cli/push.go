@@ -62,12 +62,13 @@ func Push(flags PushFlags, args []string) {
 		}
 	}
 
+	log.Printf("Uploading ...")
 	form := client.PushForm{
 		Key:      flags.Key,
 		Path:     path,
 		Password: flags.Pass,
 	}
-	uid, err := client.Push(form, f.Name(), sessionID == "")
+	uid, err := client.Push(form, f.Name())
 	if err != nil {
 		log.Fatal(err)
 	}
