@@ -1,14 +1,14 @@
-package push
+package cli
 
 import (
-	"codesfer/internal/backend"
+	"codesfer/internal/client"
 	"crypto/rand"
 	"fmt"
 	"log"
 	"os"
 )
 
-type Flags struct {
+type PushFlags struct {
 	Path string
 	Pass string
 	Key  string
@@ -27,17 +27,15 @@ func randID(n int) (string, error) {
 	return string(b), nil
 }
 
-func Run(flags Flags, args []string) {
+func Push(flags PushFlags, args []string) {
 	const (
-		colorRed    = "\033[31m"
-		colorGreen  = "\033[32m"
 		colorYellow = "\033[33m"
 		colorReset  = "\033[0m"
 	)
 
 	path := flags.Path
 
-	sessionID := backend.ReadSessionID()
+	sessionID := client.ReadSessionID()
 	if path == "" {
 		log.Print("Pushing code...")
 	} else {
@@ -53,16 +51,9 @@ func Run(flags Flags, args []string) {
 	}
 	defer os.Remove(f.Name()) // ensure cleanup
 	for arg := range args {
-    	log.Printf("Compressing %s", args[arg])
+		log.Printf("Compressing %s", args[arg])
 	}
-	backend.CompressFiles(args, f.Name())
-
-	// log.Printf("dir: %s", dir)
-	// log.Printf("file: %s", file)
-	// log.Printf("f.Name(): %s", f.Name())
-	// log.Printf("f.Name() ext: %s", strings.Split(f.Name(), ".")[len(strings.Split(f.Name(), "."))-1])
-
-	// log.Printf("Pushing to path %s%s%s", colorYellow, path, colorReset)
+	client.CompressFiles(args, f.Name())
 
 	if path == "" {
 		path, err = randID(5)
@@ -71,12 +62,12 @@ func Run(flags Flags, args []string) {
 		}
 	}
 
-	form := backend.PushForm{
+	form := client.PushForm{
 		Key:      flags.Key,
 		Path:     path,
 		Password: flags.Pass,
 	}
-	uid, err := backend.Push(form, f.Name(), sessionID == "")
+	uid, err := client.Push(form, f.Name(), sessionID == "")
 	if err != nil {
 		log.Fatal(err)
 	}

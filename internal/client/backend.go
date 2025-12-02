@@ -1,4 +1,4 @@
-package backend
+package client
 
 import (
 	"log"
@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	BaseURL string // -ldflags -X codesfer/internal/backend.BaseURL=<default URL>
+	BaseURL string // -ldflags -X codesfer/internal/client.BaseURL=<default URL>
 )
 
 const (

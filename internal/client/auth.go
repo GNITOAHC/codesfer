@@ -1,4 +1,4 @@
-package backend
+package client
 
 import (
 	"encoding/json"
@@ -163,7 +163,7 @@ func UsernameAvailable(username string) (bool, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusConflict {
-		return false, nil
+		return false, errors.New("Username is already taken")
 	}
 	if resp.StatusCode == http.StatusOK {
 		return true, nil
