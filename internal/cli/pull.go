@@ -1,22 +1,23 @@
-package pull
+package cli
 
 import (
-	"codesfer/internal/backend"
+	"codesfer/internal/client"
 	"log"
 )
 
-type Flags struct {
+type PullFlags struct {
 	Out  string
 	Pass string
 }
 
-func Run(flags Flags, code string) {
-	sessionID := backend.ReadSessionID()
+func Pull(flags PullFlags, code string) {
+	sessionID := client.ReadSessionID()
 	if sessionID == "" {
 		log.Printf("Not logged in")
 	}
 
-	zip, err := backend.Pull(sessionID, code, flags.Pass, sessionID == "")
+	log.Print("Pulling...")
+	zip, err := client.Pull(sessionID, code, flags.Pass)
 	if err != nil {
 		log.Fatalf("Pull failed: %v", err)
 	}
@@ -24,7 +25,7 @@ func Run(flags Flags, code string) {
 	log.Printf("File downloaded: %s", zip)
 	log.Printf("Decompressing to %s", flags.Out)
 
-	err = backend.Decompress(zip, flags.Out)
+	err = client.Decompress(zip, flags.Out)
 	if err != nil {
 		log.Fatalf("Decompress failed: %v", err)
 	}

@@ -1,18 +1,19 @@
-package list
+package cli
 
 import (
-	"codesfer/internal/backend"
+	"codesfer/internal/client"
 	"fmt"
 	"log"
 )
 
-func Run() {
-	sessionID := backend.ReadSessionID()
+// List displays all code snippets for the logged-in user.
+func List() {
+	sessionID := client.ReadSessionID()
 	if sessionID == "" {
 		log.Fatal("You are not logged in. Login first to list codes.")
 	}
 
-	objs, err := backend.List(sessionID)
+	objs, err := client.List(sessionID)
 	if err != nil {
 		log.Fatal(err)
 	}

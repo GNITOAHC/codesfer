@@ -1,10 +1,7 @@
 package main
 
 import (
-	"codesfer/internal/commands/auth"
-	"codesfer/internal/commands/list"
-	"codesfer/internal/commands/pull"
-	"codesfer/internal/commands/push"
+	"codesfer/internal/cli"
 
 	"github.com/spf13/cobra"
 )
@@ -15,13 +12,13 @@ var rootCmd = &cobra.Command{
 	Long:  `Codesfer is a tool for sending and receiving code snippets. It allows you to share code snippets with others easily and quickly.`,
 }
 
-var pushCmdFlags push.Flags
+var pushCmdFlags cli.PushFlags
 var pushCmd = &cobra.Command{
 	Use:   "push [file1] [file2] ...",
 	Short: "Send a code snippet.",
 	Long:  `Send a code snippet. This command allows you to send a code snippet to another user.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		push.Run(pushCmdFlags, args)
+		cli.Push(pushCmdFlags, args)
 	},
 }
 
@@ -30,17 +27,17 @@ var listCmd = &cobra.Command{
 	Short: "List all your code snippets.",
 	Long:  `List all your code snippets. This command allows you to list your code snippets.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		list.Run()
+		cli.List()
 	},
 }
 
-var pullCmdFlags pull.Flags
+var pullCmdFlags cli.PullFlags
 var pullCmd = &cobra.Command{
 	Use:   "pull [code]",
 	Short: "Receive a code snippet.",
 	Long:  `Receive a code snippet. This command allows you to receive a code snippet from another user.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		pull.Run(pullCmdFlags, args[0])
+		cli.Pull(pullCmdFlags, args[0])
 	},
 }
 
@@ -49,7 +46,7 @@ var loginCmd = &cobra.Command{
 	Short: "Login to Codesfer.",
 	Long:  `Login to Codesfer. This command allows you to login to Codesfer.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		auth.Login()
+		cli.Login()
 	},
 }
 
@@ -58,7 +55,7 @@ var logoutCmd = &cobra.Command{
 	Short: "Logout from Codesfer.",
 	Long:  `Logout from Codesfer. This command allows you to logout from Codesfer.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		auth.Logout()
+		cli.Logout()
 	},
 }
 
@@ -67,7 +64,7 @@ var registerCmd = &cobra.Command{
 	Short: "Register to Codesfer.",
 	Long:  `Register to Codesfer. This command allows you to register to Codesfer.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		auth.Register()
+		cli.Register()
 	},
 }
 
@@ -76,7 +73,31 @@ var accountCmd = &cobra.Command{
 	Short: "Manage your account.",
 	Long:  `Manage your account. This command allows you to manage your account.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		auth.Account()
+		cli.Account()
+	},
+}
+
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Configure Codesfer settings.",
+	Long:  `Configure Codesfer settings. This command allows you to configure Codesfer settings.`,
+}
+
+var configSetCmd = &cobra.Command{
+	Use:   "set [key] [value]",
+	Short: "Set a configuration value.",
+	Long:  `Set a configuration value. This command allows you to set a configuration value.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		cli.ConfigSet()
+	},
+}
+
+var configGetCmd = &cobra.Command{
+	Use:   "get [key]",
+	Short: "Get a configuration value.",
+	Long:  `Get a configuration value. This command allows you to get a configuration value.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		cli.ConfigGet()
 	},
 }
 
@@ -109,6 +130,12 @@ func main() {
 	pullCmd.Flags().StringVarP(
 		&pullCmdFlags.Pass, "pass", "p", "", "Password for the code snippet if it is encrypted",
 	)
+
+	// =====================
+	// configCmd subcommands
+	// =====================
+	configCmd.AddCommand(configSetCmd, configGetCmd)
+	rootCmd.AddCommand(configCmd)
 
 	rootCmd.Execute()
 }

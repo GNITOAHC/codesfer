@@ -1,4 +1,4 @@
-package backend
+package client
 
 import (
 	"bytes"
@@ -20,7 +20,7 @@ type PushForm struct {
 	Password string
 }
 
-func Push(form PushForm, zipFile string, anon bool) (string, error) {
+func Push(form PushForm, zipFile string) (string, error) {
 	// Open the file
 	file, err := os.Open(zipFile)
 	if err != nil {
@@ -68,12 +68,7 @@ func Push(form PushForm, zipFile string, anon bool) (string, error) {
 	}
 
 	// Create request
-	var route string
-	if anon {
-		route = "/anonymous/upload"
-	} else {
-		route = "/storage/upload"
-	}
+	route := "/storage/upload"
 	req, err := http.NewRequest("POST", BaseURL+route, &body)
 	if err != nil {
 		return "", err
@@ -165,13 +160,8 @@ func generateID(n int) (string, error) {
 
 // Pull a file and automatically extract
 // key: <uid> || <username>/<uid> || <username>/<path>
-func Pull(sessionID, key, password string, anon bool) (string, error) {
-	var prefix string
-	if anon {
-		prefix = "/anonymous/download"
-	} else {
-		prefix = "/storage/download"
-	}
+func Pull(sessionID, key, password string) (string, error) {
+	prefix := "/storage/download"
 	url := BaseURL + prefix + "?key=" + key + "&password=" + password
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
