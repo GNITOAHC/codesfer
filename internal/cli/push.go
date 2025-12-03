@@ -53,7 +53,9 @@ func Push(flags PushFlags, args []string) {
 	for arg := range args {
 		log.Printf("Compressing %s", args[arg])
 	}
-	client.CompressFiles(args, f.Name())
+	if err := client.CompressFiles(args, f.Name()); err != nil {
+		log.Fatalf("Failed to compress files: %v", err)
+	}
 
 	if path == "" {
 		path, err = randID(5)
