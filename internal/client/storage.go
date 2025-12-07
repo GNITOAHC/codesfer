@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"codesfer/pkg/api"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
@@ -116,7 +117,7 @@ type Object struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func List(sessionID string) ([]Object, error) {
+func List(sessionID string) (api.ListResponse, error) {
 	url := BaseURL + "/storage/list"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -138,7 +139,7 @@ func List(sessionID string) ([]Object, error) {
 		return nil, errors.New(string(errmsg))
 	}
 
-	var objects []Object
+	var objects api.ListResponse
 	if err := json.NewDecoder(resp.Body).Decode(&objects); err != nil {
 		return nil, err
 	}

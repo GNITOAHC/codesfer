@@ -2,7 +2,7 @@
 package auth
 
 import (
-	apihttp "codesfer/pkg/api/http"
+	"codesfer/pkg/api"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -165,10 +165,10 @@ func me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respSessions := make([]apihttp.AccountSession, 0)
+	respSessions := make([]api.AccountSession, 0)
 
 	for _, session := range sessions {
-		respSessions = append(respSessions, apihttp.AccountSession{
+		respSessions = append(respSessions, api.AccountSession{
 			Location:  session.Location,
 			Agent:     session.Agent,
 			LastSeen:  session.LastSeen,
@@ -178,7 +178,7 @@ func me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(apihttp.AccountResponse{
+	json.NewEncoder(w).Encode(api.AccountResponse{
 		Email:    user.Email,
 		Username: user.Username,
 		Sessions: respSessions,

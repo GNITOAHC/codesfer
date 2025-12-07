@@ -2,6 +2,7 @@
 package storage
 
 import (
+	"codesfer/pkg/api"
 	"codesfer/pkg/object"
 	"encoding/json"
 	"errors"
@@ -56,8 +57,17 @@ func list(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	response := api.ListResponse{}
+	for _, obj := range objs {
+		response = append(response, api.SingleObject{
+			Key:       obj.ID,
+			Password:  obj.Password,
+			Path:      obj.Path,
+			CreatedAt: obj.CreatedAt,
+		})
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(objs)
+	json.NewEncoder(w).Encode(response)
 }
 
 // upload compressed file to R2 and return uid; path: username/<dir>/filename

@@ -1,6 +1,4 @@
-package apihttp
-
-import "codesfer/pkg/object"
+package api
 
 // Endpoint: /auth/me
 type AccountSession struct {
@@ -24,5 +22,12 @@ type RegisterRequest struct {
 }
 type RegisterResponse string
 
-// Endpoint: /list
-type ListResponse []object.Object
+// Endpoint: /storage/list
+type SingleObject struct {
+	Key       string            `json:"key,omitempty"`
+	Path      string            `json:"path"`
+	Password  string            `json:"password,omitempty"`
+	CreatedAt string            `json:"created_at"`
+	Meta      map[string]string `json:"meta,omitempty"`
+}
+type ListResponse []SingleObject
