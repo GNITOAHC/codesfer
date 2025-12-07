@@ -25,6 +25,6 @@ func List() {
 		} else {
 			pass = obj.Password
 		}
-		fmt.Printf("[%s] %s (pass: %s; created at: %s)\n", obj.ID, obj.Filename, pass, obj.CreatedAt)
+		fmt.Printf("[%s] %s (pass: %s; created at: %s)\n", obj.Key, obj.Path, pass, obj.CreatedAt)
 	}
 }
