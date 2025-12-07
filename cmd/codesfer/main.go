@@ -41,6 +41,14 @@ var pullCmd = &cobra.Command{
 	},
 }
 
+var removeCmd = &cobra.Command{
+	Use:   "remove [code1] [code2] ...",
+	Short: "Remove a code snippet.",
+	Run: func(cmd *cobra.Command, args []string) {
+		cli.Remove(args)
+	},
+}
+
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Login to Codesfer.",
@@ -102,7 +110,7 @@ var configGetCmd = &cobra.Command{
 }
 
 func main() {
-	rootCmd.AddCommand(pushCmd, listCmd, pullCmd, loginCmd, logoutCmd, registerCmd, accountCmd)
+	rootCmd.AddCommand(pushCmd, listCmd, pullCmd, removeCmd, loginCmd, logoutCmd, registerCmd, accountCmd)
 
 	// =============
 	// pushCmd flags

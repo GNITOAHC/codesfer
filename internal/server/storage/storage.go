@@ -42,6 +42,14 @@ func StorageHandler(driver, source string, objStorage object.ObjectStorage) http
 		}
 		http.Error(w, "unauthorized, only authorized users can list", http.StatusUnauthorized)
 	})
+	storageHandler.HandleFunc("DELETE /remove", func(w http.ResponseWriter, r *http.Request) {
+		if username := r.Header.Get("X-Username"); username != "" {
+			log.Printf("[/storage/remove] user %s is trying to remove objects, including key %s", username, r.URL.Query()["key"])
+			remove(w, r, username, r.URL.Query()["key"])
+			return
+		}
+		http.Error(w, "unauthorized, only authorized users can remove", http.StatusUnauthorized)
+	})
 	return storageHandler
 }
 
@@ -224,4 +232,28 @@ func download(w http.ResponseWriter, r *http.Request) {
 	if _, err := io.Copy(w, body); err != nil {
 		log.Printf("download stream error: %v", err)
 	}
+}
+
+func remove(w http.ResponseWriter, r *http.Request, username string, keys []string) {
+	resp := api.RemoveResponse{Results: make(map[string]string)}
+	for _, key := range keys {
+		// First, remove from indexdb
+		path, err := removeByID(username, key)
+		if err != nil {
+			resp.Results[key] = "error removing from indexdb: " + err.Error()
+			continue
+		}
+		log.Printf("[/storage/remove] object removed from indexdb (key: %s, path: %s) ", key, path)
+		// Then, remove from object storage
+		err = opremove(r.Context(), path)
+		if err != nil {
+			resp.Results[key] = "error removing from object storage: " + err.Error()
+			continue
+		}
+		log.Printf("[/storage/remove] object removed from object storage")
+		resp.Results[key] = "removed"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }

@@ -62,6 +62,14 @@ func opupload(ctx context.Context, file io.Reader, size int64, key, username, pa
 	return key, nil
 }
 
+func opremove(ctx context.Context, path string) error {
+	err := objectStorage.Delete(ctx, path)
+	if err != nil {
+		return errors.New("[op remove] [delete] delete failed: " + err.Error())
+	}
+	return nil
+}
+
 // sanitizeFilename extracts the base filename (safe for headers).
 func sanitizeFilename(path string) string {
 	parts := strings.Split(path, "/")

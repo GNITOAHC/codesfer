@@ -178,3 +178,39 @@ func Pull(sessionID, key, password string) (string, error) {
 
 	return file.Name(), nil
 }
+
+// Remove files by their keys
+func Remove(sessionID string, keys []string) (*api.RemoveResponse, error) {
+	queryParam := ""
+	for _, key := range keys {
+		queryParam += "key=" + key + "&"
+	}
+
+	url := BaseURL + "/storage/remove?" + queryParam
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+sessionID)
+
+	resp, err := GetHTTPClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// Read plain text from response body
+		errmsg, err := io.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+		return nil, errors.New(string(errmsg))
+	}
+
+	var result api.RemoveResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}

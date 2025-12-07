@@ -116,6 +116,17 @@ func get(id string) (*Object, error) {
 	return obj, nil
 }
 
+// removeByID removes the object with given id and returns the path in object storage
+// username should be provided to prevent unauthorized removal
+func removeByID(username, id string) (string, error) {
+	query := "DELETE FROM objects WHERE username = ? AND id = ? returning path"
+	var path string
+	if err := db.QueryRow(query, username, id).Scan(&path); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
 // getByUsernamePath returns the object with given username and path.
 // The path here refers to the `filename` field that is stored in the db
 func getByUsernamePath(username, path string) (*Object, error) {

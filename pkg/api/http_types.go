@@ -37,3 +37,8 @@ type UploadResponse struct {
 	Uid  string `json:"uid"`
 	Path string `json:"path"`
 }
+
+// Endpoint: /storage/remove
+type RemoveResponse struct {
+	Results map[string]string `json:"results"`
+}
