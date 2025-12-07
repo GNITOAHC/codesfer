@@ -31,3 +31,9 @@ type SingleObject struct {
 	Meta      map[string]string `json:"meta,omitempty"`
 }
 type ListResponse []SingleObject
+
+// Endpoint: /storage/upload
+type UploadResponse struct {
+	Uid  string `json:"uid"`
+	Path string `json:"path"`
+}

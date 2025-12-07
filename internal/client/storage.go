@@ -21,11 +21,11 @@ type PushForm struct {
 	Password string
 }
 
-func Push(form PushForm, zipFile string) (string, error) {
+func Push(form PushForm, zipFile string) (*api.UploadResponse, error) {
 	// Open the file
 	file, err := os.Open(zipFile)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer file.Close()
 
@@ -36,43 +36,43 @@ func Push(form PushForm, zipFile string) (string, error) {
 	// Add the file field
 	part, err := writer.CreateFormFile("file", filepath.Base(zipFile))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if _, err = io.Copy(part, file); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// Add the customName field (key)
 	if form.Key != "" {
 		if err = writer.WriteField("key", form.Key); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	// Add the customName field (path)
 	if form.Path != "" {
 		if err = writer.WriteField("path", form.Path); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	// Add the customName field (password)
 	if form.Password != "" {
 		if err = writer.WriteField("password", form.Password); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	// Close writer to finalize the body
 	if err = writer.Close(); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// Create request
 	route := "/storage/upload"
 	req, err := http.NewRequest("POST", BaseURL+route, &body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+ReadSessionID())
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -80,7 +80,7 @@ func Push(form PushForm, zipFile string) (string, error) {
 	// Send request
 	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -90,22 +90,15 @@ func Push(form PushForm, zipFile string) (string, error) {
 		if err != nil {
 			panic(err)
 		}
-		return "", fmt.Errorf("server returned status: %s; error: %s", resp.Status, errmsg)
+		return nil, fmt.Errorf("server returned status: %s; error: %s", resp.Status, errmsg)
 	}
 
 	// Parse JSON response
-	var result map[string]any
+	var result api.UploadResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
+		return nil, err
 	}
-
-	// Extract "uid"
-	uid, ok := result["uid"].(string)
-	if !ok {
-		return "", fmt.Errorf("uid field missing or not a string")
-	}
-
-	return uid, nil
+	return &result, nil
 }
 
 type Object struct {

@@ -94,20 +94,50 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 	password := r.FormValue("password")
 	log.Printf("[/storage/upload] user %s is trying to upload file with key %s; path: %s; password: %s", username, key, path, password)
 
-	filename := header.Filename
-	if path != "" {
-		filename = path
-		log.Printf("[/storage/upload] user %s is trying to upload file with path %s", username, filename)
+	// Make sure unique filename per user
+	files, err := getFiles(username)
+	if err != nil {
+		http.Error(w, "failed to get existing files: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	uid, err := opupload(r.Context(), file, header.Size, key, username, password, filename)
+	// Auto rename file if conflict by adding _1, _2, ...
+	idx := 1
+	haveFile, err := haveFile(username, path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if haveFile {
+		for {
+			conflict := false
+			for _, f := range files {
+				if f.Filename == fmt.Sprintf("%s_%d", path, idx) {
+					conflict = true
+					log.Printf("[/storage/upload] path conflict, trying new filename: %s", fmt.Sprintf("%s_%d", path, idx))
+				}
+			}
+			if !conflict {
+				path = fmt.Sprintf("%s_%d", path, idx)
+				log.Printf("[/storage/upload] rename complete, new filename: %s", path)
+				break
+			}
+			idx++
+		}
+	}
+	// Rename complete
+
+	uid, err := opupload(r.Context(), file, header.Size, key, username, password, path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"uid": uid})
+	json.NewEncoder(w).Encode(api.UploadResponse{
+		Uid:  uid,
+		Path: path,
+	})
 }
 
 // download will return the archived file to user according to the key
