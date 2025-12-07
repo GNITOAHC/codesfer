@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 	"codesfer/pkg/api"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -140,18 +139,6 @@ func List(sessionID string) (api.ListResponse, error) {
 	return objects, nil
 }
 
-func generateID(n int) (string, error) {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	for i := range n {
-		b[i] = chars[int(b[i])%len(chars)]
-	}
-	return string(b), nil
-}
-
 // Pull a file and automatically extract
 // key: <uid> || <username>/<uid> || <username>/<path>
 func Pull(sessionID, key, password string) (string, error) {
@@ -178,11 +165,7 @@ func Pull(sessionID, key, password string) (string, error) {
 		return "", errors.New(string(errmsg))
 	}
 
-	randID, err := generateID(5)
-	if err != nil {
-		return "", err
-	}
-	file, err := os.Create("./codesfer_download_" + randID + ".zip")
+	file, err := os.CreateTemp("", "codesfer_download_*.zip")
 	if err != nil {
 		return "", err
 	}
@@ -193,6 +176,5 @@ func Pull(sessionID, key, password string) (string, error) {
 		return "", err
 	}
 
-	fmt.Printf("File downloaded successfully: %s\n", file.Name())
 	return file.Name(), nil
 }
