@@ -11,7 +11,7 @@ import (
 )
 
 func generateID(n int) (string, error) {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`-="
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-="
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
