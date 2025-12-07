@@ -22,11 +22,9 @@ func generateID(n int) (string, error) {
 	return string(b), nil
 }
 
-// r2path returns the path to object inside R2 bucket
-// e.g. username: u, uid: 1234, path: dir/file.zip
-// will return u/uid/dir/file.zip
-func r2path(username, uid, path string) string {
-	return fmt.Sprintf("%s/%s/%s", username, uid, strings.Trim(path, "/"))
+// objPath returns the path to object inside object storage
+func objPath(username, path string) string {
+	return fmt.Sprintf("%s/%s", username, strings.Trim(path, "/"))
 }
 
 // opupload will upload a file to object storage cloud and insert a record to database
@@ -41,7 +39,7 @@ func opupload(ctx context.Context, file io.Reader, size int64, key, username, pa
 		key = uid
 	}
 
-	objectPath := r2path(username, key, path)
+	objectPath := objPath(username, path)
 
 	err := insert(key, username, path, password, objectPath)
 	if err != nil {
