@@ -4,7 +4,9 @@ package server
 import (
 	"codesfer/internal/server/auth"
 	"codesfer/internal/server/storage"
+	"codesfer/pkg/object"
 	"codesfer/pkg/r2"
+	"codesfer/pkg/sqlite"
 	"context"
 	"flag"
 	"fmt"
@@ -29,15 +31,31 @@ func Serve() {
 	source := dotenv.Get("DB_SOURCE", "file:auth.db?cache=shared")
 	indexDriver := dotenv.Get("INDEX_DB_DRIVER", "sqlite")
 	indexSource := dotenv.Get("INDEX_DB_SOURCE", "file:index.db?cache=shared")
+	backendDriver := dotenv.Get("OBJECT_BACKEND_DRIVER", "r2")
 
-	r2Storage := r2.Storage{}
-	if err := r2Storage.Init(context.Background(), r2.Config{
-		AccountID:       os.Getenv("CF_ACCOUNT_ID"),
-		AccessKey:       os.Getenv("CF_ACCESS_KEY"),
-		SecretAccessKey: os.Getenv("CF_SECRET_ACCESS_KEY"),
-		Bucket:          os.Getenv("CF_BUCKET"),
-	}); err != nil {
-		panic(err)
+	var backend object.ObjectStorage
+	switch backendDriver {
+	case "r2":
+		log.Println("Using R2 as object storage backend")
+		backend = &r2.Storage{}
+		if err := backend.Init(context.Background(), r2.Config{
+			AccountID:       os.Getenv("CF_ACCOUNT_ID"),
+			AccessKey:       os.Getenv("CF_ACCESS_KEY"),
+			SecretAccessKey: os.Getenv("CF_SECRET_ACCESS_KEY"),
+			Bucket:          os.Getenv("CF_BUCKET"),
+		}); err != nil {
+			panic(err)
+		}
+	case "sqlite":
+		log.Println("Using SQLite as object storage backend")
+		backend = &sqlite.Storage{}
+		if err := backend.Init(context.Background(), sqlite.Config{
+			Source: os.Getenv("OBJECT_STORAGE_SOURCE"),
+		}); err != nil {
+			panic(err)
+		}
+	default:
+		panic(fmt.Sprintf("unknown backend driver: %s", backendDriver))
 	}
 
 	// Mux definition start
@@ -47,7 +65,7 @@ func Serve() {
 		w.Write([]byte("pong"))
 	})
 	handle(mux, "/auth/", http.StripPrefix("/auth", auth.AuthHandler(driver, source)))
-	handle(mux, "/storage/", http.StripPrefix("/storage", storage.StorageHandler(indexDriver, indexSource, &r2Storage)), authMiddleware)
+	handle(mux, "/storage/", http.StripPrefix("/storage", storage.StorageHandler(indexDriver, indexSource, backend)), authMiddleware)
 	// Mux definition end
 
 	log.Printf("Starting server on port %d", *port)
