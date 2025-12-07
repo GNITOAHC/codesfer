@@ -38,6 +38,7 @@ func createTable() error {
 			password VARCHAR(255),
             path VARCHAR(255) UNIQUE,        -- Path in object storage
             created_at VARCHAR(255),
+			metadata TEXT,                   -- JSON string for additional metadata (TODO)
             UNIQUE (username, filename)
 	)`
 
