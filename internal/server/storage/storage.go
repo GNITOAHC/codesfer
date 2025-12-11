@@ -100,7 +100,10 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 	key := r.FormValue("key")
 	path := r.FormValue("path")
 	password := r.FormValue("password")
-	log.Printf("[/storage/upload] user %s is trying to upload file with key %s; path: %s; password: %s", username, key, path, password)
+	if path == "" || path == "." || path == "/" { // path gaurd
+		path = header.Filename
+	}
+	log.Printf("[/storage/upload] user %s is trying to upload file with key: %s; path: %s; password: %s", username, key, path, password)
 
 	// Make sure unique filename per user
 	files, err := getFiles(username)
