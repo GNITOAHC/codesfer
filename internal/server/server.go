@@ -26,12 +26,22 @@ func init() {
 	dotenv.Load(".env")
 }
 
+func getOrPanic(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		panic(fmt.Sprintf("environment variable %s not set", key))
+	}
+	return value
+}
+
 func Serve() {
+	flag.Parse()
+
 	driver := dotenv.Get("DB_DRIVER", "sqlite")
 	source := dotenv.Get("DB_SOURCE", "file:auth.db?cache=shared")
 	indexDriver := dotenv.Get("INDEX_DB_DRIVER", "sqlite")
 	indexSource := dotenv.Get("INDEX_DB_SOURCE", "file:index.db?cache=shared")
-	backendDriver := dotenv.Get("OBJECT_BACKEND_DRIVER", "r2")
+	backendDriver := dotenv.Get("OBJECT_BACKEND_DRIVER", "sqlite")
 
 	var backend object.ObjectStorage
 	switch backendDriver {
@@ -39,10 +49,10 @@ func Serve() {
 		log.Println("Using R2 as object storage backend")
 		backend = &r2.Storage{}
 		if err := backend.Init(context.Background(), r2.Config{
-			AccountID:       os.Getenv("CF_ACCOUNT_ID"),
-			AccessKey:       os.Getenv("CF_ACCESS_KEY"),
-			SecretAccessKey: os.Getenv("CF_SECRET_ACCESS_KEY"),
-			Bucket:          os.Getenv("CF_BUCKET"),
+			AccountID:       getOrPanic("CF_ACCOUNT_ID"),
+			AccessKey:       getOrPanic("CF_ACCESS_KEY"),
+			SecretAccessKey: getOrPanic("CF_SECRET_ACCESS_KEY"),
+			Bucket:          getOrPanic("CF_BUCKET"),
 		}); err != nil {
 			panic(err)
 		}
@@ -50,7 +60,7 @@ func Serve() {
 		log.Println("Using SQLite as object storage backend")
 		backend = &sqlite.Storage{}
 		if err := backend.Init(context.Background(), sqlite.Config{
-			Source: os.Getenv("OBJECT_STORAGE_SOURCE"),
+			Source: dotenv.Get("OBJECT_STORAGE_SOURCE", "file:object_storage.db?cache=shared"),
 		}); err != nil {
 			panic(err)
 		}
