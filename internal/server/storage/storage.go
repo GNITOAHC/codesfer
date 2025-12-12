@@ -172,8 +172,8 @@ func download(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	log.Printf("[/storage/download] user %s is trying to download object %s", r.Header.Get("X-Username"), key)
-	log.Printf("uid: %s, username: %s, path: %s", uid, username, path)
+	log.Printf("[/storage/download] user %s is trying to download object, key: %s", r.Header.Get("X-Username"), key)
+	log.Printf("  uid: %s, username: %s, path: %s", uid, username, path)
 
 	var obj *Object
 	var err error
@@ -204,8 +204,7 @@ func download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[/storage/download] user %s is downloading object", r.Header.Get("X-Username"))
-	log.Printf("username: %s, filename: %s, path: %s, uid: %s", obj.Username, obj.Filename, obj.Path, obj.ID)
+	log.Printf("  resp: username: %s, filename: %s, path: %s, uid: %s", obj.Username, obj.Filename, obj.Path, obj.ID)
 
 	// ============================
 	// Download from Object Storage
