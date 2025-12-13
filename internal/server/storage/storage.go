@@ -237,22 +237,29 @@ func download(w http.ResponseWriter, r *http.Request) {
 }
 
 func remove(w http.ResponseWriter, r *http.Request, username string, keys []string) {
+	log.Printf("[/storage/remove] user %s is trying to remove objects, including key %s", username, keys)
 	resp := api.RemoveResponse{Results: make(map[string]string)}
 	for _, key := range keys {
 		// First, remove from indexdb
 		path, err := removeByID(username, key)
 		if err != nil {
 			resp.Results[key] = "error removing from indexdb: " + err.Error()
+			log.Printf("  key: %s, path: %s; error removing from indexdb: %v", key, path, err)
 			continue
+		} else {
+			log.Printf("  key: %s, path: %s; removed from indexdb", key, path)
 		}
-		log.Printf("[/storage/remove] object removed from indexdb (key: %s, path: %s) ", key, path)
+
 		// Then, remove from object storage
 		err = opremove(r.Context(), path)
 		if err != nil {
 			resp.Results[key] = "error removing from object storage: " + err.Error()
+			log.Printf("  key: %s, path: %s; error removing from object storage: %v", key, path, err)
 			continue
+		} else {
+			log.Printf("  key: %s, path: %s; removed from object storage", key, path)
 		}
-		log.Printf("[/storage/remove] object removed from object storage")
+
 		resp.Results[key] = "removed"
 	}
 
