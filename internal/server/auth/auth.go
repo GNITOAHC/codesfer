@@ -117,12 +117,23 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	agent := r.Header.Get("User-Agent")
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		log.Printf("  failed to split remote addr: %v", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
+
+	// Get real IP from headers if behind proxy
+	ip := r.Header.Get("CF-Connecting-IP") // Cloudflare
+	if ip == "" {
+		ip = r.Header.Get("X-Forwarded-For") // Standard header
 	}
+	if ip == "" {
+		// Fallback to RemoteAddr
+		var err error
+		ip, _, err = net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			log.Printf("  failed to split remote addr: %v", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	sessionID, err := createSession(data.Email, agent, ip)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
