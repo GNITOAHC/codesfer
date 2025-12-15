@@ -94,47 +94,6 @@ func checkPassword(password, hash string) bool {
 	return err == nil
 }
 
-func getUsers() ([]User, error) {
-	rows, err := db.Query("SELECT email, password, username, created_at FROM users")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	users := []User{}
-	for rows.Next() {
-		user := User{}
-		err := rows.Scan(&user.Email, &user.Password, &user.Username, &user.CreatedAt)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, user)
-	}
-	return users, nil
-}
-
-func getAllSessions() ([]Session, error) {
-	rows, err := db.Query("SELECT id, email, created_at FROM sessions")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	sessions := []Session{}
-	for rows.Next() {
-		session := Session{}
-		err := rows.Scan(&session.ID, &session.Email, &session.CreatedAt)
-		if err != nil {
-			return nil, err
-		}
-		sessions = append(sessions, session)
-	}
-	return sessions, nil
-}
-
-func reset(table string) error {
-	_, err := db.Exec("DELETE FROM " + table)
-	return err
-}
-
 func createUser(email, password, username string) error {
 	user, err := getUser(email)
 	if err != nil && err != ErrUserNotFound {

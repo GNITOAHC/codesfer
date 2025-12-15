@@ -28,16 +28,6 @@ func AuthHandler(driver, source string) http.Handler {
 	return authhandler
 }
 
-func getAllUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := getUsers()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(users)
-}
-
 // username route will check if a username is taken
 func username(w http.ResponseWriter, r *http.Request) {
 	username := r.URL.Query().Get("username")
