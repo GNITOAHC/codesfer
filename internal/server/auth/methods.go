@@ -11,3 +11,7 @@ func UsernameFromSessionID(sessionID string) (string, error) {
 	}
 	return user.Username, nil
 }
+
+func UpdateSessionLastSeen(sessionID string) error {
+	return updateSessionLastSeen(sessionID)
+}

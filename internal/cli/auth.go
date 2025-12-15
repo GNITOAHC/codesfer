@@ -19,12 +19,15 @@ func Account() {
 	fmt.Printf("Username: %s\n", account.Username)
 	for i, session := range account.Sessions {
 		if session.Current {
-			fmt.Printf("%sCurrent session: [%d]%s\n", "\033[36m", i, "\033[0m") // cyan
+			fmt.Printf("%s", "\033[36m") // cyan
 		}
 		fmt.Printf(
 			"[%d] Session: Location: %s, Agent: %s, Last seen: %s, Created at: %s\n",
 			i, session.Location, session.Agent, session.LastSeen, session.CreatedAt,
 		)
+		if session.Current {
+			fmt.Printf("%s", "\033[0m") // reset
+		}
 	}
 }
 

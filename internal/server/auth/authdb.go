@@ -233,6 +233,15 @@ func deleteSession(sessionID string) error {
 	return nil
 }
 
+func updateSessionLastSeen(sessionID string) error {
+	query := "UPDATE sessions SET last_seen = ? WHERE id = ?"
+	_, err := db.Exec(query, time.Now().Format(time.RFC3339), sessionID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func usernameExists(username string) bool {
 	row := db.QueryRow("SELECT username FROM users WHERE username = ?", username)
 	user := &User{}

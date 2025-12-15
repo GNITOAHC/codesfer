@@ -49,6 +49,8 @@ func authMiddleware(next http.Handler) http.Handler {
 		r.Header.Set("X-Session-ID", sessionID)
 		r.Header.Set("X-Username", username)
 
+		auth.UpdateSessionLastSeen(sessionID)
+
 		next.ServeHTTP(w, r)
 	})
 }

@@ -31,6 +31,7 @@ type LocationResponse struct {
 	City    string `json:"city"`
 	Region  string `json:"region"`
 	Country string `json:"country"`
+	Bogon   bool   `json:"bogon"`
 }
 
 // getLocation returns the location as a string based on the IP address
@@ -51,6 +52,14 @@ func ip2Location(ip string) (string, error) {
 	var locResp LocationResponse
 	if err := json.NewDecoder(resp.Body).Decode(&locResp); err != nil {
 		return "", err
+	}
+
+	if locResp.Bogon {
+		return "Localhost", nil
+	}
+
+	if locResp.City == "" && locResp.Region == "" && locResp.Country == "" {
+		return "Unknown", nil
 	}
 
 	location := fmt.Sprintf("%s, %s, %s", locResp.City, locResp.Region, locResp.Country)

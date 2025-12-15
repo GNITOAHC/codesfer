@@ -5,8 +5,8 @@ import (
 	"codesfer/pkg/api"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
-	"strings"
 )
 
 var reservedUsername = [3]string{"anon", "admin", "root"}
@@ -104,21 +104,25 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err.Error() == "user not found" {
 			http.Error(w, err.Error(), http.StatusNotFound)
-			log.Printf("[/auth/login] [user not found] user %s failed to login", data.Email)
+			log.Printf("  [user not found] user %s failed to login", data.Email)
 			return
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Printf("[/auth/login] [internal error] user %s failed to login", data.Email)
+		log.Printf("  [internal error] user %s failed to login", data.Email)
 		return
 	}
 	if !verified {
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
-		log.Printf("[/auth/login] [invalid credentials] user %s failed to login", data.Email)
+		log.Printf("  [invalid credentials] user %s failed to login", data.Email)
 		return
 	}
 	agent := r.Header.Get("User-Agent")
-	ip := r.RemoteAddr
-	ip = strings.Split(ip, ":")[0] // Remove port
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		log.Printf("  failed to split remote addr: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 	sessionID, err := createSession(data.Email, agent, ip)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
