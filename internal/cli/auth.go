@@ -21,9 +21,9 @@ func Account() {
 		if session.Current {
 			fmt.Printf("%s", "\033[36m") // cyan
 		}
-		fmt.Printf(
+		fmt.Printf( // [:10] to show only date part from RFC3339 timestamp
 			"[%d] Session: Location: %s, Agent: %s, Last seen: %s, Created at: %s\n",
-			i, session.Location, session.Agent, session.LastSeen, session.CreatedAt,
+			i, session.Location, session.Agent, session.LastSeen[:10], session.CreatedAt[:10],
 		)
 		if session.Current {
 			fmt.Printf("%s", "\033[0m") // reset

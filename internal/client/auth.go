@@ -1,6 +1,7 @@
 package client
 
 import (
+	"codesfer/pkg/api"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -172,28 +173,16 @@ func UsernameAvailable(username string) (bool, error) {
 	return false, nil
 }
 
-type Account struct {
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Sessions []struct {
-		Location  string `json:"location"`
-		Agent     string `json:"agent"`
-		LastSeen  string `json:"last_seen"`
-		CreatedAt string `json:"created_at"`
-		Current   bool   `json:"current"`
-	} `json:"sessions"`
-}
-
-func AccountInfo(sessionID string) (Account, error) {
+func AccountInfo(sessionID string) (*api.AccountResponse, error) {
 	url := BaseURL + "/auth/me?session_id=" + sessionID
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return Account{}, err
+		return nil, err
 	}
 
 	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
-		return Account{}, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -203,14 +192,14 @@ func AccountInfo(sessionID string) (Account, error) {
 		if err != nil {
 			panic(err)
 		}
-		return Account{}, errors.New(string(errmsg))
+		return nil, errors.New(string(errmsg))
 	}
 
-	var account Account
+	var account api.AccountResponse
 	err = json.NewDecoder(resp.Body).Decode(&account)
 	if err != nil {
-		return Account{}, err
+		return nil, err
 	}
 
-	return account, nil
+	return &account, nil
 }
