@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"syscall"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -21,13 +22,33 @@ func Account() {
 		if session.Current {
 			fmt.Printf("%s", "\033[36m") // cyan
 		}
-		fmt.Printf( // [:10] to show only date part from RFC3339 timestamp
+		fmt.Printf(
 			"[%d] Session: Location: %s, Agent: %s, Last seen: %s, Created at: %s\n",
-			i, session.Location, session.Agent, session.LastSeen[:10], session.CreatedAt[:10],
+			i, session.Location, session.Agent, formatLastSeen(session.LastSeen), session.CreatedAt[:10],
 		)
 		if session.Current {
 			fmt.Printf("%s", "\033[0m") // reset
 		}
+	}
+}
+
+// formatLastSeen formats the last seen timestamp based on its relation to the current date.
+func formatLastSeen(lastSeen string) string {
+	t, err := time.Parse(time.RFC3339, lastSeen)
+	if err != nil {
+		return lastSeen // Return original if parsing fails
+	}
+
+	now := time.Now()
+	if t.Year() == now.Year() && t.Month() == now.Month() && t.Day() == now.Day() {
+		// Today: "today HH:MM"
+		return fmt.Sprintf("today %s", t.Format("15:04"))
+	} else if t.Year() == now.Year() {
+		// This year: "Month Day" (e.g., "Jan 02")
+		return t.Format("Jan 02")
+	} else {
+		// Not this year: "Year Month Day" (e.g., "2006 Jan 02")
+		return t.Format("2006 Jan 02")
 	}
 }
 

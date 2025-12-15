@@ -23,7 +23,8 @@ func AuthHandler(driver, source string) http.Handler {
 	authhandler.HandleFunc("POST /register", register)
 	authhandler.HandleFunc("POST /login", login)
 	authhandler.HandleFunc("POST /logout", logout)
-	authhandler.HandleFunc("GET /me", me)
+	// authhandler.HandleFunc("GET /me", me)
+	handle(authhandler, "/me", http.HandlerFunc(me), refreshTime)
 
 	return authhandler
 }
