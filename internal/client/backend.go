@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	BaseURL string // -ldflags -X codesfer/internal/client.BaseURL=<default URL>
+	BaseURL = "https://api.codesfer.io" // overwrite with -ldflags -X codesfer/internal/client.BaseURL=<default URL>
 )
 
 const (
