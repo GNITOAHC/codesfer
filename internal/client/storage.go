@@ -100,15 +100,6 @@ func Push(form PushForm, zipFile string) (*api.UploadResponse, error) {
 	return &result, nil
 }
 
-type Object struct {
-	ID        string `json:"id"`
-	Username  string `json:"username"`
-	Filename  string `json:"filename"`
-	Password  string `json:"password"`
-	Path      string `json:"path"`
-	CreatedAt string `json:"created_at"`
-}
-
 func List(sessionID string) (api.ListResponse, error) {
 	url := BaseURL + "/storage/list"
 	req, err := http.NewRequest("GET", url, nil)
