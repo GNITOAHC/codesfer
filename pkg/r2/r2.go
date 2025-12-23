@@ -206,6 +206,41 @@ func (s *Storage) Get(ctx context.Context, key string, rng *object.Range) (objec
 	return responseToObject(key, resp), resp.Body, nil
 }
 
+// List fetches all objects matching the prefix.
+// Note: ContentType and CustomMeta are not available in list results.
+func (s *Storage) List(ctx context.Context, prefix string) ([]object.Object, error) {
+	if err := s.ensureClient(); err != nil {
+		return nil, err
+	}
+
+	var objects []object.Object
+	var continuationToken *string
+
+	for {
+		input := &s3.ListObjectsV2Input{
+			Bucket:            aws.String(s.bucket),
+			Prefix:            aws.String(prefix),
+			ContinuationToken: continuationToken,
+		}
+
+		resp, err := s.client.ListObjectsV2(ctx, input)
+		if err != nil {
+			return nil, mapError(err)
+		}
+
+		for _, item := range resp.Contents {
+			objects = append(objects, itemToObject(item))
+		}
+
+		if !aws.ToBool(resp.IsTruncated) {
+			break
+		}
+		continuationToken = resp.NextContinuationToken
+	}
+
+	return objects, nil
+}
+
 // Stat returns metadata only.
 func (s *Storage) Stat(ctx context.Context, key string) (object.Object, error) {
 	if err := s.ensureClient(); err != nil {
@@ -265,6 +300,15 @@ func headToObject(key string, resp *s3.HeadObjectOutput) object.Object {
 	}
 }
 
+func itemToObject(item types.Object) object.Object {
+	return object.Object{
+		Key:          aws.ToString(item.Key),
+		Size:         aws.ToInt64(item.Size),
+		ETag:         aws.ToString(item.ETag),
+		LastModified: aws.ToTime(item.LastModified),
+	}
+}
+
 func cloneMeta(in map[string]string) map[string]string {
 	if len(in) == 0 {
 		return nil
@@ -306,3 +350,6 @@ func mapError(err error) error {
 
 	return err
 }
+
+// Ensure Storage implements ObjectStorage interface.
+var _ object.ObjectStorage = (*Storage)(nil)

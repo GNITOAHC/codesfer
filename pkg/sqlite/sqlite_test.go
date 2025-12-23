@@ -146,3 +146,46 @@ func TestSQLiteConflict(t *testing.T) {
 		t.Fatalf("second Put: expected ErrConflict got %v", err)
 	}
 }
+
+func TestSQLiteList(t *testing.T) {
+	ctx := context.Background()
+	st := newTestStorage(t, true)
+
+	keys := []string{"a/1", "a/2", "b/1", "b/2", "c"}
+	for _, k := range keys {
+		if _, err := st.Put(ctx, k, bytes.NewReader([]byte("v")), 1, "", nil); err != nil {
+			t.Fatalf("setup Put %s: %v", k, err)
+		}
+	}
+
+	tests := []struct {
+		prefix string
+		want   []string
+	}{
+		{"", []string{"a/1", "a/2", "b/1", "b/2", "c"}},
+		{"a/", []string{"a/1", "a/2"}},
+		{"b", []string{"b/1", "b/2"}},
+		{"z", nil},
+	}
+
+	for _, tt := range tests {
+		got, err := st.List(ctx, tt.prefix)
+		if err != nil {
+			t.Errorf("List(%q): %v", tt.prefix, err)
+			continue
+		}
+		var gotKeys []string
+		for _, o := range got {
+			gotKeys = append(gotKeys, o.Key)
+		}
+		if len(gotKeys) != len(tt.want) {
+			t.Errorf("List(%q) len: got %d want %d (got %v)", tt.prefix, len(gotKeys), len(tt.want), gotKeys)
+			continue
+		}
+		for i, k := range gotKeys {
+			if k != tt.want[i] {
+				t.Errorf("List(%q) [%d]: got %s want %s", tt.prefix, i, k, tt.want[i])
+			}
+		}
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"strings"
 	"time"
@@ -151,6 +152,49 @@ func (s *Storage) Get(ctx context.Context, key string, rng *object.Range) (objec
 	}
 
 	return obj, io.NopCloser(bytes.NewReader(slice)), nil
+}
+
+// List returns all objects with the given prefix.
+func (s *Storage) List(ctx context.Context, prefix string) ([]object.Object, error) {
+	if err := s.ensureDB(); err != nil {
+		return nil, err
+	}
+
+	query := fmt.Sprintf(`SELECT key, size, etag, content_type, last_modified, meta FROM %s WHERE key LIKE ? ORDER BY key ASC`, s.table)
+
+	// Note: We are not escaping % and _ in the prefix, so they will be treated as wildcards.
+	// This is acceptable for a basic implementation.
+	rows, err := s.db.QueryContext(ctx, query, prefix+"%")
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list objects: %w", err)
+	}
+	defer rows.Close()
+
+	var objects []object.Object
+	for rows.Next() {
+		var (
+			key          string
+			size         int64
+			etag         sql.NullString
+			contentType  sql.NullString
+			lastModified string
+			metaJSON     sql.NullString
+		)
+		if err := rows.Scan(&key, &size, &etag, &contentType, &lastModified, &metaJSON); err != nil {
+			return nil, fmt.Errorf("sqlite: scan object: %w", err)
+		}
+
+		obj, err := s.rowToObject(key, size, etag.String, contentType.String, lastModified, metaJSON.String)
+		if err != nil {
+			return nil, err
+		}
+		objects = append(objects, obj)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("sqlite: iterate objects: %w", err)
+	}
+
+	return objects, nil
 }
 
 // Stat fetches metadata without streaming the body.
@@ -340,9 +384,7 @@ func cloneMeta(in map[string]string) map[string]string {
 		return nil
 	}
 	out := make(map[string]string, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
+	maps.Copy(out, in)
 	return out
 }
 
@@ -352,3 +394,6 @@ func nullIfEmpty(s string) any {
 	}
 	return s
 }
+
+// Ensure Storage implements ObjectStorage interface.
+var _ object.ObjectStorage = (*Storage)(nil)

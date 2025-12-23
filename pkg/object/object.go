@@ -42,6 +42,8 @@ type Lifecycle interface {
 type Reader interface {
 	// Get returns object metadata and a stream the caller must close.
 	Get(ctx context.Context, key string, rng *Range) (Object, io.ReadCloser, error)
+	// List returns a list of objects matching the prefix.
+	List(ctx context.Context, prefix string) ([]Object, error)
 }
 
 // Writer exposes write-related operations.
@@ -66,4 +68,3 @@ type ObjectStorage interface {
 	// Stat returns metadata without streaming the body.
 	Stat(ctx context.Context, key string) (Object, error)
 }
-
