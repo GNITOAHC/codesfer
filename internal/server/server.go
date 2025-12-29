@@ -4,6 +4,7 @@ package server
 import (
 	"codesfer/internal/server/auth"
 	"codesfer/internal/server/storage"
+	"codesfer/pkg/cron"
 	"codesfer/pkg/object"
 	"codesfer/pkg/r2"
 	"codesfer/pkg/sqlite"
@@ -79,6 +80,12 @@ func Serve() {
 	// Mux definition end
 
 	log.Printf("Starting server on port %d", *port)
+
+	// Start cron jobs
+	cronMgr := cron.NewManager()
+	AddCronJobs(cronMgr)
+	cronMgr.Start()
+	defer cronMgr.Stop()
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {

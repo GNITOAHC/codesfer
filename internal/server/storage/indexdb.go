@@ -142,3 +142,21 @@ func getByUsernamePath(username, path string) (*Object, error) {
 	}
 	return obj, nil
 }
+
+func getAllPaths() ([]string, error) {
+	query := "SELECT path FROM objects"
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var paths []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, err
+		}
+		paths = append(paths, path)
+	}
+	return paths, nil
+}
