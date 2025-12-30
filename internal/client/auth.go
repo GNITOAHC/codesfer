@@ -13,11 +13,6 @@ import (
 	"strings"
 )
 
-const (
-	configDir   = ".codesfer" // This should be in the user's home directory
-	sessionFile = "session"   // This should be in the config directory
-)
-
 // makePaths will make sure the given directory exists, if not, it will be created
 func makePaths(path string) error {
 	err := os.MkdirAll(path, 0755)

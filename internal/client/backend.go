@@ -9,14 +9,6 @@ import (
 	"strings"
 )
 
-var (
-	BaseURL = "https://api.codesfer.io" // overwrite with -ldflags -X codesfer/internal/client.BaseURL=<default URL>
-)
-
-const (
-	baseURLFile = "base_url"
-)
-
 func init() {
 	home, err := os.UserHomeDir()
 	if err != nil {
