@@ -143,6 +143,26 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionID = sessionID[7:] // Remove "Bearer "
 
+	// Check if we're logging out a different session by name
+	targetName := r.URL.Query().Get("target")
+	if targetName != "" {
+		// Get the current user to verify ownership
+		currentUser, err := getUserFromSessionID(sessionID)
+		if err != nil {
+			http.Error(w, "invalid session", http.StatusUnauthorized)
+			return
+		}
+		// Delete the target session by name (only if it belongs to the same user)
+		err = deleteSessionByName(currentUser.Email, targetName)
+		if err != nil {
+			http.Error(w, "target session not found", http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("logout success"))
+		return
+	}
+
 	err := deleteSession(sessionID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -175,6 +195,7 @@ func me(w http.ResponseWriter, r *http.Request) {
 
 	for _, session := range sessions {
 		respSessions = append(respSessions, api.AccountSession{
+			Name:      session.Name,
 			Location:  session.Location,
 			Agent:     session.Agent,
 			LastSeen:  session.LastSeen,

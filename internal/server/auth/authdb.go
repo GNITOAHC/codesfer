@@ -23,6 +23,7 @@ type User struct {
 type Session struct {
 	ID        string `json:"-"`
 	Email     string `json:"-"`
+	Name      string `json:"name"` // Public identifier for session management (not the actual session ID)
 	Location  string `json:"location"`
 	Agent     string `json:"agent"`
 	LastSeen  string `json:"last_seen"`
@@ -63,6 +64,7 @@ func createTable() error {
 		CREATE TABLE IF NOT EXISTS sessions (
             id VARCHAR(255) PRIMARY KEY,
             email VARCHAR(255),
+			name VARCHAR(255),
 			location VARCHAR(255),
 			agent VARCHAR(255),
 			last_seen VARCHAR(255),
@@ -139,13 +141,14 @@ func getUserFromSessionID(sessionID string) (*User, error) {
 
 func createSession(email, agent, ip string) (string, error) {
 	uniqueID := generateUniqueID()
+	sessionName := generateSessionName()
 	location, err := ip2Location(ip)
 	if err != nil {
 		location = "unknown"
 	}
 
-	query := "INSERT INTO sessions (id, email, location, agent, last_seen, created_at) VALUES (?, ?, ?, ?, ?, ?)"
-	_, err = db.Exec(query, uniqueID, email, location, agent, time.Now().Format(time.RFC3339), time.Now().Format(time.RFC3339))
+	query := "INSERT INTO sessions (id, email, name, location, agent, last_seen, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	_, err = db.Exec(query, uniqueID, email, sessionName, location, agent, time.Now().Format(time.RFC3339), time.Now().Format(time.RFC3339))
 	if err != nil {
 		return "", err
 	}
@@ -153,9 +156,9 @@ func createSession(email, agent, ip string) (string, error) {
 }
 
 func getSession(sessionID string) (*Session, error) {
-	row := db.QueryRow("SELECT id, email, location, agent, last_seen, created_at FROM sessions WHERE id = ?", sessionID)
+	row := db.QueryRow("SELECT id, email, name, location, agent, last_seen, created_at FROM sessions WHERE id = ?", sessionID)
 	session := &Session{}
-	err := row.Scan(&session.ID, &session.Email, &session.Location, &session.Agent, &session.LastSeen, &session.CreatedAt)
+	err := row.Scan(&session.ID, &session.Email, &session.Name, &session.Location, &session.Agent, &session.LastSeen, &session.CreatedAt)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return nil, ErrUserNotFound
@@ -166,7 +169,7 @@ func getSession(sessionID string) (*Session, error) {
 }
 
 func getSessions(email string) ([]Session, error) {
-	rows, err := db.Query("SELECT id, location, agent, last_seen, created_at FROM sessions WHERE email = ?", email)
+	rows, err := db.Query("SELECT id, name, location, agent, last_seen, created_at FROM sessions WHERE email = ?", email)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +177,7 @@ func getSessions(email string) ([]Session, error) {
 	sessions := []Session{}
 	for rows.Next() {
 		session := Session{}
-		err := rows.Scan(&session.ID, &session.Location, &session.Agent, &session.LastSeen, &session.CreatedAt)
+		err := rows.Scan(&session.ID, &session.Name, &session.Location, &session.Agent, &session.LastSeen, &session.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -188,6 +191,23 @@ func deleteSession(sessionID string) error {
 	_, err := db.Exec(query, sessionID)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+// deleteSessionByName deletes a session by its public name for the given user email.
+func deleteSessionByName(email, name string) error {
+	query := "DELETE FROM sessions WHERE email = ? AND name = ?"
+	result, err := db.Exec(query, email, name)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("session not found")
 	}
 	return nil
 }

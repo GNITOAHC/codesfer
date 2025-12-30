@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -25,6 +26,17 @@ func generateUniqueID() string {
 	// Get the hashed bytes and convert to a hex string
 	hashedID := hash.Sum(nil)
 	return hex.EncodeToString(hashedID)
+}
+
+// generateSessionName generates a random 8-character hex string for session identification.
+// This is a public identifier used for session management, not the actual session ID.
+func generateSessionName() string {
+	bytes := make([]byte, 4) // 4 bytes = 8 hex characters
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to time-based if crypto/rand fails
+		return fmt.Sprintf("%08x", time.Now().UnixNano()&0xFFFFFFFF)
+	}
+	return hex.EncodeToString(bytes)
 }
 
 type LocationResponse struct {

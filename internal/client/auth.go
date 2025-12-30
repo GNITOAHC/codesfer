@@ -117,6 +117,33 @@ func Logout(sessionID string) error {
 	return nil
 }
 
+// LogoutSession logs out a specific session identified by its public name.
+// The mySessionID is used for authentication.
+func LogoutSession(mySessionID, targetSessionName string) error {
+	url := BaseURL + "/auth/logout?target=" + targetSessionName
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+mySessionID)
+
+	resp, err := GetHTTPClient().Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		errmsg, err := io.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+		return errors.New(string(errmsg))
+	}
+
+	return nil
+}
+
 func Register(email, password, username string) error {
 	url := BaseURL + "/auth/register"
 	body := fmt.Sprintf(`{"email": "%s", "password": "%s", "username": "%s"}`, email, password, username)

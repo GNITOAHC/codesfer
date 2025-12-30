@@ -2,6 +2,7 @@ package api
 
 // Endpoint: /auth/me
 type AccountSession struct {
+	Name      string `json:"name"` // Public identifier for session management
 	Location  string `json:"location"`
 	Agent     string `json:"agent"`
 	LastSeen  string `json:"last_seen"`

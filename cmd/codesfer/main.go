@@ -2,6 +2,8 @@ package main
 
 import (
 	"codesfer/internal/cli"
+	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 )
@@ -59,11 +61,22 @@ var loginCmd = &cobra.Command{
 }
 
 var logoutCmd = &cobra.Command{
-	Use:   "logout",
+	Use:   "logout [session_number]",
 	Short: "Logout from Codesfer.",
-	Long:  `Logout from Codesfer. This command allows you to logout from Codesfer.`,
+	Long: `Logout from Codesfer. This command allows you to logout from Codesfer.
+Run 'codesfer logout' to logout the current machine.
+Run 'codesfer logout <number>' to logout a specific session (use 'codesfer account' to see session numbers).`,
 	Run: func(cmd *cobra.Command, args []string) {
-		cli.Logout()
+		if len(args) == 0 {
+			cli.Logout(-1)
+			return
+		}
+		sessionIndex, err := strconv.Atoi(args[0])
+		if err != nil {
+			fmt.Println("Invalid session number. Please provide a valid number.")
+			return
+		}
+		cli.Logout(sessionIndex)
 	},
 }
 

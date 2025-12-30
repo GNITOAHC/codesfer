@@ -83,17 +83,60 @@ func Login() {
 }
 
 // Logout removes the remote and local sessions.
-func Logout() {
+// If sessionIndex is -1, it logs out the current session.
+// Otherwise, it logs out the session at the given index.
+func Logout(sessionIndex int) {
 	sessionID := client.ReadSessionID()
-	err := client.Logout(sessionID)
-	if err != nil {
-		log.Println("Session not deleted or not found:", err)
+	if sessionID == "" {
+		fmt.Println("You are not logged in.")
+		return
 	}
 
-	if err := client.RemoveSessionID(); err != nil {
+	if sessionIndex == -1 {
+		// Logout current session
+		err := client.Logout(sessionID)
+		if err != nil {
+			log.Println("Session not deleted or not found:", err)
+		}
+
+		if err := client.RemoveSessionID(); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Logout successful.")
+		return
+	}
+
+	// Logout a specific session by index
+	account, err := client.AccountInfo(sessionID)
+	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Logout successful.")
+
+	if sessionIndex < 0 || sessionIndex >= len(account.Sessions) {
+		fmt.Printf("Invalid session index. Valid range: 0-%d\n", len(account.Sessions)-1)
+		return
+	}
+
+	targetSession := account.Sessions[sessionIndex]
+	if targetSession.Current {
+		// If trying to logout current session via index, just do regular logout
+		err := client.Logout(sessionID)
+		if err != nil {
+			log.Println("Session not deleted or not found:", err)
+		}
+
+		if err := client.RemoveSessionID(); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Logout successful.")
+		return
+	}
+
+	err = client.LogoutSession(sessionID, targetSession.Name)
+	if err != nil {
+		log.Fatal("Failed to logout session:", err)
+	}
+	fmt.Printf("Session [%d] has been logged out.\n", sessionIndex)
 }
 
 // Register signs up a new account with email/password/username.
