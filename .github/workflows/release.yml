@@ -1,48 +1,18 @@
-name: Cross-Platform Build & Daily Pre-Release
+name: Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
   contents: write
 
 jobs:
   # --------------------------------------------------------
-  # Generate daily release tag (only once)
-  # --------------------------------------------------------
-  tag:
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.tagger.outputs.tag }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Generate daily tag
-        id: tagger
-        run: |
-          TODAY=$(date +'%Y-%m-%d')
-          git fetch --tags
-
-          EXISTING=$(git tag | grep "^$TODAY-" | sort -t- -k4 -n || true)
-          if [ -z "$EXISTING" ]; then
-            N=1
-          else
-            LAST=$(echo "$EXISTING" | tail -1 | awk -F- '{print $4}')
-            N=$((LAST + 1))
-          fi
-
-          TAG="$TODAY-$N"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Generated tag: $TAG"
-
-  # --------------------------------------------------------
   # Cross-platform build matrix
   # --------------------------------------------------------
   build:
-    needs: tag
     runs-on: ubuntu-latest
 
     strategy:
@@ -50,7 +20,6 @@ jobs:
       matrix:
         goos: [linux, darwin, windows]
         goarch: [amd64, arm64]
-        # Windows arm64 not built in Go toolchain yet
         exclude:
           - goos: windows
             goarch: arm64
@@ -66,7 +35,7 @@ jobs:
 
       - name: Build and package binary
         run: |
-          VERSION="${{ needs.tag.outputs.tag }}"
+          VERSION="${GITHUB_REF_NAME}"
           ext=""
           if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
 
@@ -74,7 +43,7 @@ jobs:
           # Build CLI
           # --------------
           cli_bin="codesfer$ext"
-          cli_archive="codesfer-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
+          cli_archive="codesfer-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
 
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o "$cli_bin" -ldflags "-s -w -X codesfer/pkg/version.Version=$VERSION" ./cmd/codesfer/main.go
@@ -85,7 +54,7 @@ jobs:
           # Build server
           # --------------
           server_bin="codeserver$ext"
-          server_archive="codeserver-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
+          server_archive="codeserver-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
 
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o "$server_bin" -ldflags "-s -w -X codesfer/pkg/version.Version=$VERSION" ./cmd/codesfer-server/main.go
@@ -95,21 +64,23 @@ jobs:
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: codesfer-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: codesfer-${{ matrix.goos }}-${{ matrix.goarch }}*
+          name: codesfer-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: codesfer-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}*
           if-no-files-found: error
 
       - name: Upload server artifact
         uses: actions/upload-artifact@v4
         with:
-          name: codeserver-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: codeserver-${{ matrix.goos }}-${{ matrix.goarch }}*
+          name: codeserver-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: codeserver-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}*
 
   # --------------------------------------------------------
   # Release job (runs after all binaries finish)
   # --------------------------------------------------------
   release:
-    needs: [build, tag]
+    permissions:
+      contents: write
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
@@ -118,15 +89,14 @@ jobs:
         with:
           path: dist
 
-      - name: Create GitHub Pre-Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.tag.outputs.tag }}
-          name: "Automated Cross-Platform Release ${{ needs.tag.outputs.tag }}"
-          prerelease: true
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }}"
+          prerelease: false
           files: |
             dist/**/codesfer-*
             dist/**/codeserver-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

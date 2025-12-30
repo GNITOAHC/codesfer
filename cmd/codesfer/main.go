@@ -2,6 +2,7 @@ package main
 
 import (
 	"codesfer/internal/cli"
+	"codesfer/pkg/version"
 	"fmt"
 	"strconv"
 
@@ -9,9 +10,10 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "codesfer",
-	Short: "Codesfer is a tool for sending and receiving code snippets.",
-	Long:  `Codesfer is a tool for sending and receiving code snippets. It allows you to share code snippets with others easily and quickly.`,
+	Use:     "codesfer",
+	Short:   "Codesfer is a tool for sending and receiving code snippets.",
+	Long:    `Codesfer is a tool for sending and receiving code snippets. It allows you to share code snippets with others easily and quickly.`,
+	Version: version.Version,
 }
 
 var pushCmdFlags cli.PushFlags
