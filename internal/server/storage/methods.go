@@ -71,6 +71,10 @@ func DownloadRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if servePreview(w, r, obj) {
+		return
+	}
+
 	if obj.Password != "" {
 		http.Error(w, "object is password protected, use CLI to download", http.StatusUnauthorized)
 		return
@@ -104,4 +108,81 @@ func DownloadRoute(w http.ResponseWriter, r *http.Request) {
 	if _, err := io.Copy(w, body); err != nil {
 		log.Printf("download stream error: %v", err)
 	}
+}
+
+func servePreview(w http.ResponseWriter, r *http.Request, obj *Object) bool {
+	if !isPreviewBot(r.Header.Get("User-Agent")) {
+		return false
+	}
+	log.Printf("  Preview bot detected: %s", r.Header.Get("User-Agent"))
+	meta, err := objectStorage.Stat(r.Context(), obj.Path)
+	if err != nil {
+		// If we can't get stats, we can still show basic preview or just error out.
+		// Choosing to log and show basic info if possible, or error.
+		log.Printf("Failed to stat object for preview: %v", err)
+	}
+
+	filename := sanitizeFilename(obj.Path)
+	if obj.Filename != "" {
+		filename = obj.Filename
+	}
+
+	description := "Ready to download"
+	if meta.Size > 0 {
+		description = fmt.Sprintf("Size: %s", formatSize(meta.Size))
+	}
+	if obj.Password != "" {
+		description = "🔒 Password Protected"
+		if meta.Size > 0 {
+			description += fmt.Sprintf(" • Size: %s", formatSize(meta.Size))
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+    <title>%s</title>
+    <meta property="og:title" content="%s">
+    <meta property="og:description" content="%s">
+    <meta property="og:type" content="website">
+    <meta name="theme-color" content="#2b2d31">
+</head>
+<body>
+    <p>%s</p>
+    <p>%s</p>
+</body>
+</html>`, filename, filename, description, filename, description)
+	return true
+}
+
+func isPreviewBot(userAgent string) bool {
+	bots := []string{
+		"Discordbot",
+		"facebookexternalhit",
+		"Twitterbot",
+		"WhatsApp",
+		"TelegramBot",
+		"Slackbot",
+		"SkypeUriPreview",
+	}
+	for _, bot := range bots {
+		if strings.Contains(userAgent, bot) {
+			return true
+		}
+	}
+	return false
+}
+
+func formatSize(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
