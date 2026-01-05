@@ -27,4 +27,10 @@ func List() {
 		}
 		fmt.Printf("[%s] %s (pass: %s; created at: %s)\n", obj.Key, obj.Path, pass, obj.CreatedAt)
 	}
+
+	if len(objs) == 0 {
+		fmt.Println("No codes found.")
+	}
+
+	fmt.Printf("\nShare it even more easily with link: %s/download/<code>.zip\n", client.BaseURL)
 }

@@ -2,7 +2,15 @@ package storage
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"codesfer/pkg/object"
 )
 
 func RemoveOrphanedObject() error {
@@ -25,7 +33,7 @@ func RemoveOrphanedObject() error {
 
 	var orphans []string
 	for _, obj := range objects {
-        log.Printf("Object: %s", obj.Key)
+		log.Printf("Object: %s", obj.Key)
 		if _, exists := indexedMap[obj.Key]; !exists {
 			orphans = append(orphans, obj.Key)
 		}
@@ -40,4 +48,60 @@ func RemoveOrphanedObject() error {
 	}
 
 	return nil
+}
+
+// DownloadRoute is the route for downloading an object
+//
+//	curl -OL http://base_url/download/<key>.zip
+//	wget http://base_url/download/<key>.zip
+func DownloadRoute(w http.ResponseWriter, r *http.Request) {
+	key := strings.TrimRight(r.PathValue("key"), ".zip")
+	log.Printf("[/download] anonymous user is trying to download object, key: %s", key)
+
+	var obj *Object
+	var err error
+	if obj, err = get(key); obj != nil || err != nil {
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		log.Printf("  Object found by key: %s", obj.ID)
+	} else {
+		http.Error(w, "object not found", http.StatusNotFound)
+		return
+	}
+
+	if obj.Password != "" {
+		http.Error(w, "object is password protected, use CLI to download", http.StatusUnauthorized)
+		return
+	}
+
+	meta, body, err := objectStorage.Get(r.Context(), obj.Path, nil)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, object.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+	defer body.Close()
+
+	filename := sanitizeFilename(obj.Path)
+	if !strings.HasSuffix(filename, ".zip") {
+		filename += ".zip"
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	if meta.ContentType != "" {
+		w.Header().Set("Content-Type", meta.ContentType)
+	} else {
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+	if meta.Size > 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(meta.Size, 10))
+	}
+
+	if _, err := io.Copy(w, body); err != nil {
+		log.Printf("download stream error: %v", err)
+	}
 }

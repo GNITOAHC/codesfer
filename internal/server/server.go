@@ -77,6 +77,7 @@ func Serve() {
 	})
 	handle(mux, "/auth/", http.StripPrefix("/auth", auth.AuthHandler(driver, source)))
 	handle(mux, "/storage/", http.StripPrefix("/storage", storage.StorageHandler(indexDriver, indexSource, backend)), authMiddleware)
+	handle(mux, "GET /download/{key}", http.HandlerFunc(storage.DownloadRoute))
 	// Mux definition end
 
 	log.Printf("Starting server on port %d", *port)
