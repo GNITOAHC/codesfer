@@ -1,5 +1,8 @@
 # Codesfer
 
+[![Daily Pre-Release](https://github.com/GNITOAHC/codesfer/actions/workflows/prerelease.yml/badge.svg)](https://github.com/GNITOAHC/codesfer/actions/workflows/prerelease.yml)
+[![Release](https://github.com/GNITOAHC/codesfer/actions/workflows/release.yml/badge.svg)](https://github.com/GNITOAHC/codesfer/actions/workflows/release.yml)
+
 A CLI tool and self-hostable server for sharing code snippets and files with optional encryption.
 
 ## Installation
