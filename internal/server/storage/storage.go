@@ -83,6 +83,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 // key: optional
 // path: optional
 // password: optional
+// force: optional
 func upload(w http.ResponseWriter, r *http.Request, username string) {
 	// Max upload size: 500 MB
 	if err := r.ParseMultipartForm(500 << 20); err != nil {
@@ -138,7 +139,12 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 	}
 	// Rename complete
 
-	uid, err := opupload(r.Context(), file, header.Size, key, username, password, path)
+	overwrite := false
+	if r.FormValue("force") == "true" {
+		overwrite = true
+	}
+
+	uid, err := opupload(r.Context(), file, header.Size, key, username, password, path, overwrite)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -71,6 +71,33 @@ func insert(id, user, filename, password, path string) error {
 	return err
 }
 
+// upsert will overwrite existing record if any
+func upsert(id, user, filename, password, path string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Remove existing record if any
+	_, err = tx.Exec("DELETE FROM objects WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+
+	// Insert new record
+	query := "INSERT INTO objects (id, username, filename, password, path, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+	_, err = tx.Exec(query, id, user, filename, password, path, time.Now().Format(time.RFC3339))
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func getFiles(username string) ([]Object, error) {
 	query := "SELECT filename FROM objects WHERE username = ?"
 	rows, err := db.Query(query, username)

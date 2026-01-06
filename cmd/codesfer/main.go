@@ -143,6 +143,9 @@ func main() {
 	pushCmd.Flags().StringVarP(
 		&pushCmdFlags.Key, "key", "k", "", "Key to get faster access to the code snippet",
 	)
+	pushCmd.Flags().BoolVarP(
+		&pushCmdFlags.Force, "force", "f", false, "Overwrite existing key if exists, only use it when you want to replace an existing key",
+	)
 
 	// =============
 	// pullCmd flags

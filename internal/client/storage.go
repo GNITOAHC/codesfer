@@ -18,6 +18,7 @@ type PushForm struct {
 	Key      string
 	Path     string
 	Password string
+	Force    bool
 }
 
 func Push(form PushForm, zipFile string) (*api.UploadResponse, error) {
@@ -58,6 +59,13 @@ func Push(form PushForm, zipFile string) (*api.UploadResponse, error) {
 	// Add the customName field (password)
 	if form.Password != "" {
 		if err = writer.WriteField("password", form.Password); err != nil {
+			return nil, err
+		}
+	}
+
+	// Add the customName field (force)
+	if form.Force {
+		if err = writer.WriteField("force", "true"); err != nil {
 			return nil, err
 		}
 	}

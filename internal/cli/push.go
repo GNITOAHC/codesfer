@@ -10,10 +10,11 @@ import (
 )
 
 type PushFlags struct {
-	Path string
-	Pass string
-	Key  string
-	Desc string
+	Path  string
+	Pass  string
+	Key   string
+	Desc  string
+	Force bool
 }
 
 // sanitizePath ensures the path contains only allowed characters i.e. A~Z, a~z, 0~9, _, - and /
@@ -87,6 +88,7 @@ func Push(flags PushFlags, args []string) {
 		Key:      flags.Key,
 		Path:     customPath,
 		Password: flags.Pass,
+		Force:    flags.Force,
 	}
 	resp, err := client.Push(form, f.Name())
 	if err != nil {
