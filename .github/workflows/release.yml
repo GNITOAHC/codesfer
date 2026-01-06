@@ -43,23 +43,33 @@ jobs:
           # Build CLI
           # --------------
           cli_bin="codesfer$ext"
-          cli_archive="codesfer-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
 
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o "$cli_bin" -ldflags "-s -w -X codesfer/pkg/version.Version=$VERSION" ./cmd/codesfer/main.go
 
-          gzip -c "$cli_bin" > "$cli_archive"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            cli_archive="codesfer-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}.zip"
+            zip "$cli_archive" "$cli_bin"
+          else
+            cli_archive="codesfer-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
+            tar -czf "$cli_archive" "$cli_bin"
+          fi
 
           # --------------
           # Build server
           # --------------
           server_bin="codeserver$ext"
-          server_archive="codeserver-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}.gz"
 
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o "$server_bin" -ldflags "-s -w -X codesfer/pkg/version.Version=$VERSION" ./cmd/codesfer-server/main.go
 
-          gzip -c "$server_bin" > "$server_archive"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            server_archive="codeserver-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}.zip"
+            zip "$server_archive" "$server_bin"
+          else
+            server_archive="codeserver-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
+            tar -czf "$server_archive" "$server_bin"
+          fi
 
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v4
