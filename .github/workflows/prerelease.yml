@@ -22,21 +22,7 @@ jobs:
 
       - name: Generate daily tag
         id: tagger
-        run: |
-          TODAY=$(date +'%Y-%m-%d')
-          git fetch --tags
-
-          EXISTING=$(git tag | grep "^$TODAY-" | sort -t- -k4 -n || true)
-          if [ -z "$EXISTING" ]; then
-            N=1
-          else
-            LAST=$(echo "$EXISTING" | tail -1 | awk -F- '{print $4}')
-            N=$((LAST + 1))
-          fi
-
-          TAG="$TODAY-$N"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Generated tag: $TAG"
+        uses: GNITOAHC/daily-release-tag-action@v1
 
   # --------------------------------------------------------
   # Cross-platform build matrix
