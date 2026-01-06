@@ -25,6 +25,8 @@ Or install from [releases](https://github.com/GNITOAHC/codesfer/releases).
 - **Pull**: `codesfer pull <code|alias> [-o out_dir] [--pass password]`
 - **Manage**: `codesfer list` / `remove <code|alias>`
 
+`codesfer list` will also show URL which can be downloaded with direct `wget` or `curl`
+
 ### Config
 
 - `codesfer config set|get <key> [value]`
@@ -33,7 +35,7 @@ Or install from [releases](https://github.com/GNITOAHC/codesfer/releases).
 
 Run `./build/codeserver -port 3000`.
 
-### Configuration (.env)
+### Self-hosting Configuration (.env)
 
 - `DB_SOURCE`: Auth DB path.
 - `INDEX_DB_SOURCE`: File index path.
