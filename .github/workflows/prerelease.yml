@@ -1,4 +1,4 @@
-name: Cross-Platform Build & Daily Pre-Release
+name: Daily Pre-Release
 
 on:
   push:
