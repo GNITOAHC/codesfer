@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.92.1
 	github.com/aws/smithy-go v1.23.2
-	github.com/gnitoahc/go-dotenv v0.1.3
+	github.com/gnitoahc/go-dotenv v0.1.4
 	github.com/spf13/cobra v1.10.1
 	github.com/tursodatabase/libsql-client-go v0.0.0-20240902231107-85af5b9d094d
 	golang.org/x/crypto v0.45.0
