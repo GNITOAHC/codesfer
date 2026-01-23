@@ -19,10 +19,6 @@ import (
 	"github.com/gnitoahc/go-dotenv"
 )
 
-var (
-	port = flag.Int("port", 3000, "The server port")
-)
-
 func init() {
 	dotenv.Load(".env")
 }
@@ -35,7 +31,11 @@ func getOrPanic(key string) string {
 	return value
 }
 
-func Serve() {
+type ServeFlags struct {
+	Port int
+}
+
+func Serve(flags ServeFlags) {
 	flag.Parse()
 
 	driver := dotenv.Get("DB_DRIVER", "sqlite")
@@ -80,7 +80,7 @@ func Serve() {
 	handle(mux, "GET /download/{key}", http.HandlerFunc(storage.DownloadRoute))
 	// Mux definition end
 
-	log.Printf("Starting server on port %d", *port)
+	log.Printf("Starting server on port %d", flags.Port)
 
 	// Start cron jobs
 	cronMgr := cron.NewManager()
@@ -88,7 +88,7 @@ func Serve() {
 	cronMgr.Start()
 	defer cronMgr.Stop()
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", flags.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
