@@ -36,7 +36,7 @@ Or install from [releases](https://github.com/GNITOAHC/codesfer/releases).
 
 ## Self-hosting
 
-Run `./build/codeserver -port 3000`.
+Run `./build/codeserver serve --port 3000`.
 
 ### Self-hosting Configuration (.env)
 
