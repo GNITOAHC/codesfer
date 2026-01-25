@@ -43,3 +43,13 @@ type UploadResponse struct {
 type RemoveResponse struct {
 	Results map[string]string `json:"results"`
 }
+
+// Endpoint: /storage/info
+type InspectResponse struct {
+	Key       string         `json:"key"`
+	Owner     string         `json:"owner"`
+	Path      string         `json:"path"`
+	CreatedAt string         `json:"created_at"`
+	Protected bool           `json:"protected"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
+}

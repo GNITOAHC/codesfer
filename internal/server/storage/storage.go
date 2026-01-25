@@ -50,6 +50,7 @@ func StorageHandler(driver, source string, objStorage object.ObjectStorage) http
 		}
 		http.Error(w, "unauthorized, only authorized users can remove", http.StatusUnauthorized)
 	})
+	storageHandler.HandleFunc("GET /info", info)
 	return storageHandler
 }
 
@@ -272,4 +273,78 @@ func remove(w http.ResponseWriter, r *http.Request, username string, keys []stri
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+// info returns metadata about a code snippet without downloading it
+// key: <uid> || <username>/<uid> || <username>/<path>
+func info(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	pwd := r.URL.Query().Get("password")
+	currentUser := r.Header.Get("X-Username")
+
+	// Parse key - same logic as download()
+	uid, username, path := func() (string, string, string) {
+		if !strings.Contains(key, "/") {
+			return key, "", "" // uid
+		}
+		parts := strings.SplitN(key, "/", 2)
+		username := parts[0]
+		if strings.Contains(parts[1], "/") {
+			return "", username, parts[1] // username/path
+		} else {
+			return parts[1], username, parts[1] // username/path or username/uid
+		}
+	}()
+
+	log.Printf("[/storage/info] user %s is inspecting object, key: %s", currentUser, key)
+	log.Printf("  uid: %s, username: %s, path: %s", uid, username, path)
+
+	var obj *Object
+	var err error
+	if obj, err = get(uid); obj != nil || err != nil {
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		log.Printf("  Object found by uid: %s", obj.ID)
+	} else {
+		obj, err = getByUsernamePath(username, path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if obj != nil {
+			log.Printf("  Object found by username/path: %s/%s; uid: %s", obj.Username, obj.Path, obj.ID)
+		}
+		if obj == nil {
+			http.Error(w, "object not found", http.StatusNotFound)
+			return
+		}
+	}
+
+	// Access control: bypass password check if current user is the owner
+	isOwner := currentUser != "" && currentUser == obj.Username
+	if obj.Password != "" && !isOwner && pwd != obj.Password {
+		log.Printf("  Access denied: password protected and user is not owner")
+		http.Error(w, "invalid password", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse metadata JSON
+	var metadata map[string]any
+	if obj.Metadata != "" {
+		if err := json.Unmarshal([]byte(obj.Metadata), &metadata); err != nil {
+			log.Printf("  Warning: failed to parse metadata JSON: %v", err)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(api.InspectResponse{
+		Key:       obj.ID,
+		Owner:     obj.Username,
+		Path:      obj.Filename,
+		CreatedAt: obj.CreatedAt,
+		Protected: obj.Password != "",
+		Metadata:  metadata,
+	})
 }

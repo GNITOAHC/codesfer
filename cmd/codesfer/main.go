@@ -132,6 +132,17 @@ var configGetCmd = &cobra.Command{
 	},
 }
 
+var inspectCmdFlags cli.InspectFlags
+var inspectCmd = &cobra.Command{
+	Use:   "inspect [key]",
+	Short: "Inspect a code snippet's metadata.",
+	Long:  `Inspect a code snippet's metadata without downloading. Shows file tree and description.`,
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cli.Inspect(inspectCmdFlags, args[0])
+	},
+}
+
 func main() {
 	// =============
 	// pushCmd flags
@@ -163,12 +174,25 @@ func main() {
 		&pullCmdFlags.Pass, "pass", "p", "", "Password for the code snippet if it is encrypted",
 	)
 
+	// ================
+	// inspectCmd flags
+	// ================
+	inspectCmd.Flags().StringVarP(
+		&inspectCmdFlags.Pass, "pass", "p", "", "Password for protected snippets",
+	)
+	inspectCmd.Flags().BoolVar(
+		&inspectCmdFlags.JSON, "json", false, "Output raw metadata as JSON",
+	)
+	inspectCmd.Flags().IntVarP(
+		&inspectCmdFlags.Level, "level", "l", 2, "Tree display depth (0 for unlimited)",
+	)
+
 	// ===========
 	// subcommands
 	// ===========
 	authCmd.AddCommand(authLoginCmd, authLogoutCmd, authRegisterCmd)
 	configCmd.AddCommand(configSetCmd, configGetCmd)
-	rootCmd.AddCommand(pushCmd, listCmd, pullCmd, removeCmd, accountCmd, authCmd, configCmd)
+	rootCmd.AddCommand(pushCmd, listCmd, pullCmd, removeCmd, accountCmd, authCmd, configCmd, inspectCmd)
 
 	rootCmd.Execute()
 }

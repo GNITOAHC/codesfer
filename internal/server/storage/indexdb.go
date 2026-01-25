@@ -17,6 +17,7 @@ type Object struct {
 	Password  string `json:"password"`
 	Path      string `json:"path"`
 	CreatedAt string `json:"created_at"`
+	Metadata  string `json:"metadata"`
 }
 
 func connect(driver, source string) error {
@@ -130,10 +131,10 @@ func haveFile(username, filename string) (bool, error) {
 }
 
 func get(id string) (*Object, error) {
-	query := "SELECT id, username, filename, password, path FROM objects WHERE id = ?"
+	query := "SELECT id, username, filename, password, path, created_at, COALESCE(metadata, '') FROM objects WHERE id = ?"
 	row := db.QueryRow(query, id)
 	obj := &Object{}
-	err := row.Scan(&obj.ID, &obj.Username, &obj.Filename, &obj.Password, &obj.Path)
+	err := row.Scan(&obj.ID, &obj.Username, &obj.Filename, &obj.Password, &obj.Path, &obj.CreatedAt, &obj.Metadata)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return nil, nil
@@ -157,10 +158,10 @@ func removeByID(username, id string) (string, error) {
 // getByUsernamePath returns the object with given username and path.
 // The path here refers to the `filename` field that is stored in the db
 func getByUsernamePath(username, path string) (*Object, error) {
-	query := "SELECT id, username, filename, password, path FROM objects WHERE username = ? AND filename = ?"
+	query := "SELECT id, username, filename, password, path, created_at, COALESCE(metadata, '') FROM objects WHERE username = ? AND filename = ?"
 	row := db.QueryRow(query, username, path)
 	obj := &Object{}
-	err := row.Scan(&obj.ID, &obj.Username, &obj.Filename, &obj.Password, &obj.Path)
+	err := row.Scan(&obj.ID, &obj.Username, &obj.Filename, &obj.Password, &obj.Path, &obj.CreatedAt, &obj.Metadata)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return nil, nil
