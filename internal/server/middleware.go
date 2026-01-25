@@ -17,6 +17,11 @@ func handle(mux *http.ServeMux, pattern string, handler http.Handler, middleware
 // authMiddleware will check if user is logged in and assign custom headers to the request
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Defense-in-depth: clear any client-supplied auth headers to prevent header injection
+		r.Header.Del("X-Authorized")
+		r.Header.Del("X-Session-ID")
+		r.Header.Del("X-Username")
+
 		// Get sessionID
 		sessionID := r.Header.Get("Authorization")
 		if sessionID == "" {
