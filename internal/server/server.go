@@ -9,7 +9,6 @@ import (
 	"codesfer/pkg/r2"
 	"codesfer/pkg/sqlite"
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -18,10 +17,6 @@ import (
 
 	"github.com/gnitoahc/go-dotenv"
 )
-
-func init() {
-	dotenv.Load(".env")
-}
 
 func getOrPanic(key string) string {
 	value := os.Getenv(key)
@@ -32,11 +27,13 @@ func getOrPanic(key string) string {
 }
 
 type ServeFlags struct {
-	Port int
+	Port   int
+	Dotenv string
 }
 
 func Serve(flags ServeFlags) {
-	flag.Parse()
+	dotenv.Load(flags.Dotenv) // Default to .env in cmd/codesfer-server/main.go
+	log.Println("Environment variables loaded from", flags.Dotenv)
 
 	driver := dotenv.Get("DB_DRIVER", "sqlite")
 	source := dotenv.Get("DB_SOURCE", "file:auth.db?cache=shared")

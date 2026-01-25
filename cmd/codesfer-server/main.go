@@ -35,6 +35,7 @@ func main() {
 
 	// Serve command flags
 	serveCmd.Flags().IntVarP(&serveFlags.Port, "port", "p", 3000, "Port to listen on")
+	serveCmd.Flags().StringVar(&serveFlags.Dotenv, "dotenv", ".env", "Path to .env file")
 
 	rootCmd.Execute()
 }
