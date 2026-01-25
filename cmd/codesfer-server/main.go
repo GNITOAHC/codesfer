@@ -9,14 +9,14 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:     "codeserver",
-	Short:   "Codeserver is a server for self-hosted code sharing.",
+	Short:   "Codeserver is a server for self-hosted code sharing",
 	Version: version.Version,
 }
 
 var serveFlags server.ServeFlags
 var serveCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "Start the codeserver.",
+	Short: "Start the codeserver",
 	Run: func(cmd *cobra.Command, args []string) {
 		server.Serve(serveFlags)
 	},
@@ -24,7 +24,7 @@ var serveCmd = &cobra.Command{
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize environment for codeserver.",
+	Short: "Initialize environment for codeserver",
 	Run: func(cmd *cobra.Command, args []string) {
 		server.SetupEnv()
 	},
