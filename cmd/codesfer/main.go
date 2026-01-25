@@ -27,9 +27,10 @@ var pushCmd = &cobra.Command{
 }
 
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all your code snippets.",
-	Long:  `List all your code snippets. This command allows you to list your code snippets.`,
+	Use:     "list",
+	Short:   "List all your code snippets.",
+	Long:    `List all your code snippets. This command allows you to list your code snippets.`,
+	Aliases: []string{"ls"},
 	Run: func(cmd *cobra.Command, args []string) {
 		cli.List()
 	},
@@ -46,14 +47,21 @@ var pullCmd = &cobra.Command{
 }
 
 var removeCmd = &cobra.Command{
-	Use:   "remove [code1] [code2] ...",
-	Short: "Remove a code snippet.",
+	Use:     "remove [code1] [code2] ...",
+	Short:   "Remove a code snippet.",
+	Aliases: []string{"rm"},
 	Run: func(cmd *cobra.Command, args []string) {
 		cli.Remove(args)
 	},
 }
 
-var loginCmd = &cobra.Command{
+var authCmd = &cobra.Command{
+	Use:   "auth",
+	Short: "Authentication (login, logout, register).",
+	Long:  `Manage authentication. Use subcommands to login, logout, or register.`,
+}
+
+var authLoginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Login to Codesfer.",
 	Long:  `Login to Codesfer. This command allows you to login to Codesfer.`,
@@ -62,7 +70,7 @@ var loginCmd = &cobra.Command{
 	},
 }
 
-var logoutCmd = &cobra.Command{
+var authLogoutCmd = &cobra.Command{
 	Use:   "logout [session_number]",
 	Short: "Logout from Codesfer.",
 	Long: `Logout from Codesfer. This command allows you to logout from Codesfer.
@@ -82,7 +90,7 @@ Run 'codesfer logout <number>' to logout a specific session (use 'codesfer accou
 	},
 }
 
-var registerCmd = &cobra.Command{
+var authRegisterCmd = &cobra.Command{
 	Use:   "register",
 	Short: "Register to Codesfer.",
 	Long:  `Register to Codesfer. This command allows you to register to Codesfer.`,
@@ -125,8 +133,6 @@ var configGetCmd = &cobra.Command{
 }
 
 func main() {
-	rootCmd.AddCommand(pushCmd, listCmd, pullCmd, removeCmd, loginCmd, logoutCmd, registerCmd, accountCmd)
-
 	// =============
 	// pushCmd flags
 	// =============
@@ -157,11 +163,12 @@ func main() {
 		&pullCmdFlags.Pass, "pass", "p", "", "Password for the code snippet if it is encrypted",
 	)
 
-	// =====================
-	// configCmd subcommands
-	// =====================
+	// ===========
+	// subcommands
+	// ===========
+	authCmd.AddCommand(authLoginCmd, authLogoutCmd, authRegisterCmd)
 	configCmd.AddCommand(configSetCmd, configGetCmd)
-	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(pushCmd, listCmd, pullCmd, removeCmd, accountCmd, authCmd, configCmd)
 
 	rootCmd.Execute()
 }
