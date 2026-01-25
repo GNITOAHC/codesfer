@@ -79,6 +79,43 @@ func zipPath(zipWriter *zip.Writer, path, base string) error {
 	return err
 }
 
+// CollectFileTree returns a list of all file paths that will be included in the zip.
+// Each path includes the relative directory structure (e.g., "dir/subdir/file.txt").
+func CollectFileTree(filepaths []string) ([]string, error) {
+	var tree []string
+	for _, path := range filepaths {
+		if err := collectPath(&tree, path, ""); err != nil {
+			return nil, err
+		}
+	}
+	return tree, nil
+}
+
+func collectPath(tree *[]string, path, base string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		files, err := os.ReadDir(path)
+		if err != nil {
+			return err
+		}
+		for _, file := range files {
+			newPath := filepath.Join(path, file.Name())
+			if err := collectPath(tree, newPath, filepath.Join(base, info.Name())); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// It's a file - add to tree with its relative path
+	*tree = append(*tree, filepath.Join(base, info.Name()))
+	return nil
+}
+
 // Decompress extracts a zip file into the specified destination directory.
 // If not specified, it extracts to the current directory.
 func Decompress(zipFile, destDir string) error {

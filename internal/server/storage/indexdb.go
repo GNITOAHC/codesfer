@@ -65,14 +65,14 @@ func show(username string) ([]Object, error) {
 	return objs, nil
 }
 
-func insert(id, user, filename, password, path string) error {
-	query := "INSERT INTO objects (id, username, filename, password, path, created_at) VALUES (?, ?, ?, ?, ?, ?)"
-	_, err := db.Exec(query, id, user, filename, password, path, time.Now().Format(time.RFC3339))
+func insert(id, user, filename, password, path, metadata string) error {
+	query := "INSERT INTO objects (id, username, filename, password, path, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	_, err := db.Exec(query, id, user, filename, password, path, time.Now().Format(time.RFC3339), metadata)
 	return err
 }
 
 // upsert will overwrite existing record if any
-func upsert(id, user, filename, password, path string) error {
+func upsert(id, user, filename, password, path, metadata string) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -86,8 +86,8 @@ func upsert(id, user, filename, password, path string) error {
 	}
 
 	// Insert new record
-	query := "INSERT INTO objects (id, username, filename, password, path, created_at) VALUES (?, ?, ?, ?, ?, ?)"
-	_, err = tx.Exec(query, id, user, filename, password, path, time.Now().Format(time.RFC3339))
+	query := "INSERT INTO objects (id, username, filename, password, path, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	_, err = tx.Exec(query, id, user, filename, password, path, time.Now().Format(time.RFC3339), metadata)
 	if err != nil {
 		return err
 	}

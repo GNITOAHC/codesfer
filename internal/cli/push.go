@@ -83,12 +83,27 @@ func Push(flags PushFlags, args []string) {
 		log.Fatalf("Failed to compress files: %v", err)
 	}
 
+	// Collect file tree for metadata
+	tree, err := client.CollectFileTree(args)
+	if err != nil {
+		log.Fatalf("Failed to collect file tree: %v", err)
+	}
+
+	// Build metadata
+	metadata := map[string]any{
+		"tree": tree,
+	}
+	if flags.Desc != "" {
+		metadata["desc"] = flags.Desc
+	}
+
 	log.Printf("Uploading ...")
 	form := client.PushForm{
 		Key:      flags.Key,
 		Path:     customPath,
 		Password: flags.Pass,
 		Force:    flags.Force,
+		Metadata: metadata,
 	}
 	resp, err := client.Push(form, f.Name())
 	if err != nil {

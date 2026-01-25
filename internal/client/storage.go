@@ -19,6 +19,7 @@ type PushForm struct {
 	Path     string
 	Password string
 	Force    bool
+	Metadata map[string]any
 }
 
 func Push(form PushForm, zipFile string) (*api.UploadResponse, error) {
@@ -66,6 +67,17 @@ func Push(form PushForm, zipFile string) (*api.UploadResponse, error) {
 	// Add the customName field (force)
 	if form.Force {
 		if err = writer.WriteField("force", "true"); err != nil {
+			return nil, err
+		}
+	}
+
+	// Add metadata field as JSON
+	if form.Metadata != nil {
+		metaJSON, err := json.Marshal(form.Metadata)
+		if err != nil {
+			return nil, err
+		}
+		if err = writer.WriteField("meta", string(metaJSON)); err != nil {
 			return nil, err
 		}
 	}

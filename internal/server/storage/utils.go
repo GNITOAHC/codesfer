@@ -28,7 +28,7 @@ func objPath(username, path string) string {
 }
 
 // opupload will upload a file to object storage cloud and insert a record to database
-func opupload(ctx context.Context, file io.Reader, size int64, key, username, password, path string, overwrite bool) (string, error) {
+func opupload(ctx context.Context, file io.Reader, size int64, key, username, password, path string, overwrite bool, metadata string) (string, error) {
 	const multipartThreshold = 100 << 20 // 100 MB
 	var err error
 
@@ -44,10 +44,10 @@ func opupload(ctx context.Context, file io.Reader, size int64, key, username, pa
 
 	if overwrite {
 		log.Print("[op upload] overwrite is true, upsert record")
-		err = upsert(key, username, path, password, objectPath)
+		err = upsert(key, username, path, password, objectPath, metadata)
 	} else {
 		log.Print("[op upload] overwrite is false, insert record")
-		err = insert(key, username, path, password, objectPath)
+		err = insert(key, username, path, password, objectPath, metadata)
 	}
 	if err != nil {
 		return "", errors.New("[op upload] [insert] insert failed: " + err.Error())

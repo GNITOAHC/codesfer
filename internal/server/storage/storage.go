@@ -101,6 +101,7 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 	key := r.FormValue("key")
 	path := r.FormValue("path")
 	password := r.FormValue("password")
+	meta := r.FormValue("meta")
 	if path == "" || path == "." || path == "/" { // path gaurd
 		path = header.Filename
 	}
@@ -144,7 +145,7 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 		overwrite = true
 	}
 
-	uid, err := opupload(r.Context(), file, header.Size, key, username, password, path, overwrite)
+	uid, err := opupload(r.Context(), file, header.Size, key, username, password, path, overwrite, meta)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
