@@ -39,7 +39,7 @@ func Serve(flags ServeFlags) {
 	source := dotenv.Get("DB_SOURCE", "file:auth.db?cache=shared")
 	indexDriver := dotenv.Get("INDEX_DB_DRIVER", "sqlite")
 	indexSource := dotenv.Get("INDEX_DB_SOURCE", "file:index.db?cache=shared")
-	backendDriver := dotenv.Get("OBJECT_BACKEND_DRIVER", "sqlite")
+	backendDriver := dotenv.Get("OBJECT_STORAGE_DRIVER", "sqlite")
 
 	var backend object.ObjectStorage
 	switch backendDriver {
