@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codesfer/pkg/object"
+	"github.com/gnitoahc/codesfer/pkg/object"
 )
 
 func newTestStorage(t *testing.T, allowOverwrite bool) *Storage {

@@ -1,9 +1,9 @@
 package cli
 
 import (
-	"codesfer/internal/client"
 	"encoding/json"
 	"fmt"
+	"github.com/gnitoahc/codesfer/internal/client"
 	"log"
 	"sort"
 	"strings"

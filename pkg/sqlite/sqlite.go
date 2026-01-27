@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"codesfer/pkg/object"
+	"github.com/gnitoahc/codesfer/pkg/object"
 
 	_ "modernc.org/sqlite"
 )

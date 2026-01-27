@@ -1,4 +1,4 @@
-module codesfer
+module github.com/gnitoahc/codesfer
 
 go 1.24.3
 

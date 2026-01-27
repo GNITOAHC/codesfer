@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"codesfer/internal/client"
+	"github.com/gnitoahc/codesfer/internal/client"
 	"log"
 )
 

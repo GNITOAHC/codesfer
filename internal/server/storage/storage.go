@@ -2,11 +2,11 @@
 package storage
 
 import (
-	"codesfer/pkg/api"
-	"codesfer/pkg/object"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gnitoahc/codesfer/pkg/api"
+	"github.com/gnitoahc/codesfer/pkg/object"
 	"io"
 	"log"
 	"net/http"

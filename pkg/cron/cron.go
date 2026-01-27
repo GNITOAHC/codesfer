@@ -47,7 +47,7 @@ func (m *Manager) Add(name string, interval time.Duration, job Job) {
 		interval: interval,
 		fn:       job,
 	})
-	
+
 	if m.running {
 		// If adding while running, we should start this job immediately.
 		m.wg.Add(1)
@@ -76,7 +76,7 @@ func (m *Manager) Start() {
 		m.wg.Add(1)
 		go m.runJob(j.fn, j.name, j.interval, m.stopCh)
 	}
-	
+
 	log.Println("Cron manager started")
 }
 
@@ -118,7 +118,7 @@ func (m *Manager) runJob(job Job, name string, interval time.Duration, stopCh <-
 				// If we want the job to be cancelable via Stop(), we might want to pass a context derived from stopCh logic,
 				// but simplistic is fine.
 				ctx := context.Background()
-				
+
 				if err := job(ctx); err != nil {
 					log.Printf("Cron job %s failed: %v", name, err)
 				} else {

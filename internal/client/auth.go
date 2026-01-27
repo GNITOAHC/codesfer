@@ -1,10 +1,10 @@
 package client
 
 import (
-	"codesfer/pkg/api"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gnitoahc/codesfer/pkg/api"
 	"io"
 	"log"
 	"net/http"

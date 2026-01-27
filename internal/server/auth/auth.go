@@ -2,8 +2,8 @@
 package auth
 
 import (
-	"codesfer/pkg/api"
 	"encoding/json"
+	"github.com/gnitoahc/codesfer/pkg/api"
 	"log"
 	"net"
 	"net/http"

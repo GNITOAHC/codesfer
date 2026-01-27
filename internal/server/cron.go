@@ -1,9 +1,9 @@
 package server
 
 import (
-	"codesfer/internal/server/storage"
-	"codesfer/pkg/cron"
 	"context"
+	"github.com/gnitoahc/codesfer/internal/server/storage"
+	"github.com/gnitoahc/codesfer/pkg/cron"
 	"time"
 )
 

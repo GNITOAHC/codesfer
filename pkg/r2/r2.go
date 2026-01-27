@@ -3,10 +3,10 @@ package r2
 
 import (
 	"bytes"
-	"codesfer/pkg/object"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/gnitoahc/codesfer/pkg/object"
 	"io"
 	"maps"
 	"net/http"

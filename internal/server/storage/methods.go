@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codesfer/pkg/object"
+	"github.com/gnitoahc/codesfer/pkg/object"
 )
 
 func RemoveOrphanedObject() error {

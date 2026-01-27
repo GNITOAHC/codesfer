@@ -43,8 +43,6 @@ github.com/coder/websocket v1.8.12/go.mod h1:LNVeNrXQZfe5qhS9ALED3uA+l5pPqvwXg3C
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
-github.com/gnitoahc/go-dotenv v0.1.3 h1:VdQhSyiffZsEScyXu5X6OEQq0ACOn2L74OG/C/e2UOI=
-github.com/gnitoahc/go-dotenv v0.1.3/go.mod h1:Gxobrzv2KaOlLTMIJZVLfAo0J7h5JcC7S61ylbShHM0=
 github.com/gnitoahc/go-dotenv v0.1.4 h1:7VFgh47DlzRGg2C4987fcaW5n6P5Q3M9Od/tDRGbi5g=
 github.com/gnitoahc/go-dotenv v0.1.4/go.mod h1:Gxobrzv2KaOlLTMIJZVLfAo0J7h5JcC7S61ylbShHM0=
 github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e h1:ijClszYn+mADRFY17kjQEVQ1XRhq2/JR1M3sGqeJoxs=

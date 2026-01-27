@@ -2,14 +2,14 @@
 package server
 
 import (
-	"codesfer/internal/server/auth"
-	"codesfer/internal/server/storage"
-	"codesfer/pkg/cron"
-	"codesfer/pkg/object"
-	"codesfer/pkg/r2"
-	"codesfer/pkg/sqlite"
 	"context"
 	"fmt"
+	"github.com/gnitoahc/codesfer/internal/server/auth"
+	"github.com/gnitoahc/codesfer/internal/server/storage"
+	"github.com/gnitoahc/codesfer/pkg/cron"
+	"github.com/gnitoahc/codesfer/pkg/object"
+	"github.com/gnitoahc/codesfer/pkg/r2"
+	"github.com/gnitoahc/codesfer/pkg/sqlite"
 	"log"
 	"net"
 	"net/http"

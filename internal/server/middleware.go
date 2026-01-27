@@ -1,7 +1,7 @@
 package server
 
 import (
-	"codesfer/internal/server/auth"
+	"github.com/gnitoahc/codesfer/internal/server/auth"
 	"net/http"
 )
 

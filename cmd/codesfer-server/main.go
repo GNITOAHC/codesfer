@@ -1,8 +1,8 @@
 package main
 
 import (
-	"codesfer/internal/server"
-	"codesfer/pkg/version"
+	"github.com/gnitoahc/codesfer/internal/server"
+	"github.com/gnitoahc/codesfer/pkg/version"
 
 	"github.com/spf13/cobra"
 )

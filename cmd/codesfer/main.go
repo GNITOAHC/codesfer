@@ -1,9 +1,9 @@
 package main
 
 import (
-	"codesfer/internal/cli"
-	"codesfer/pkg/version"
 	"fmt"
+	"github.com/gnitoahc/codesfer/internal/cli"
+	"github.com/gnitoahc/codesfer/pkg/version"
 	"strconv"
 
 	"github.com/spf13/cobra"
