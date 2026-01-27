@@ -19,7 +19,7 @@ Or install from [releases](https://github.com/GNITOAHC/codesfer/releases).
 
 ### Auth & Account
 
-- `codesfer register` / `login` / `logout`
+- `codesfer auth` (Register, Login, Logout)
 - `codesfer account` (View profile)
 
 ### Share Files
@@ -36,9 +36,11 @@ Or install from [releases](https://github.com/GNITOAHC/codesfer/releases).
 
 ## Self-hosting
 
-Run `./build/codeserver serve --port 3000`.
+Run `codeserver serve --port 3000`.
 
 ### Self-hosting Configuration (.env)
+
+Run `codeserver init` to generate a `.env` file.
 
 - `DB_SOURCE`: Auth DB path.
 - `INDEX_DB_SOURCE`: File index path.
