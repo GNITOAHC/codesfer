@@ -13,18 +13,9 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 
 	"github.com/gnitoahc/go-dotenv"
 )
-
-func getOrPanic(key string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		panic(fmt.Sprintf("environment variable %s not set", key))
-	}
-	return value
-}
 
 type ServeFlags struct {
 	Port   int
@@ -47,10 +38,10 @@ func Serve(flags ServeFlags) {
 		log.Println("Using R2 as object storage backend")
 		backend = &r2.Storage{}
 		if err := backend.Init(context.Background(), r2.Config{
-			AccountID:       getOrPanic("CF_ACCOUNT_ID"),
-			AccessKey:       getOrPanic("CF_ACCESS_KEY"),
-			SecretAccessKey: getOrPanic("CF_SECRET_ACCESS_KEY"),
-			Bucket:          getOrPanic("CF_BUCKET"),
+			AccountID:       dotenv.Must("CF_ACCOUNT_ID"),
+			AccessKey:       dotenv.Must("CF_ACCESS_KEY"),
+			SecretAccessKey: dotenv.Must("CF_SECRET_ACCESS_KEY"),
+			Bucket:          dotenv.Must("CF_BUCKET"),
 		}); err != nil {
 			panic(err)
 		}
