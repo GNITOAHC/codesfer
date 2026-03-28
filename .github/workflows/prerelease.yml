@@ -62,7 +62,7 @@ jobs:
           cli_bin="codesfer$ext"
 
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-            go build -o "$cli_bin" -ldflags "-s -w -X codesfer/pkg/version.Version=$VERSION" ./cmd/codesfer/main.go
+            go build -o "$cli_bin" -ldflags "-s -w github.com/gnitoahc/codesfer/pkg/version.Version=$VERSION" ./cmd/codesfer/main.go
 
           if [ "${{ matrix.goos }}" = "windows" ]; then
             cli_archive="codesfer-${{ matrix.goos }}-${{ matrix.goarch }}.zip"
@@ -78,7 +78,7 @@ jobs:
           server_bin="codeserver$ext"
 
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-            go build -o "$server_bin" -ldflags "-s -w -X codesfer/pkg/version.Version=$VERSION" ./cmd/codesfer-server/main.go
+            go build -o "$server_bin" -ldflags "-s -w github.com/gnitoahc/codesfer/pkg/version.Version=$VERSION" ./cmd/codesfer-server/main.go
 
           if [ "${{ matrix.goos }}" = "windows" ]; then
             server_archive="codeserver-${{ matrix.goos }}-${{ matrix.goarch }}.zip"
