@@ -18,7 +18,7 @@ jobs:
       tag: ${{ steps.tagger.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Generate daily tag
         id: tagger
@@ -43,12 +43,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.24"
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
 
       - name: Build and package binary
         run: |
@@ -89,14 +90,14 @@ jobs:
           fi
 
       - name: Upload CLI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: codesfer-${{ matrix.goos }}-${{ matrix.goarch }}
           path: codesfer-${{ matrix.goos }}-${{ matrix.goarch }}*
           if-no-files-found: error
 
       - name: Upload server artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: codeserver-${{ matrix.goos }}-${{ matrix.goarch }}
           path: codeserver-${{ matrix.goos }}-${{ matrix.goarch }}*
