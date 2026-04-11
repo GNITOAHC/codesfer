@@ -48,7 +48,7 @@ func createTable() error {
 }
 
 func show(username string) ([]Object, error) {
-	query := "SELECT id, username, filename, password, path, created_at FROM objects WHERE username = ?"
+	query := "SELECT id, username, filename, password, path, created_at FROM objects WHERE username = ? ORDER BY created_at DESC"
 	rows, err := db.Query(query, username)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func upsert(id, user, filename, password, path, metadata string) error {
 }
 
 func getFiles(username string) ([]Object, error) {
-	query := "SELECT filename FROM objects WHERE username = ?"
+	query := "SELECT filename FROM objects WHERE username = ? ORDER BY created_at DESC"
 	rows, err := db.Query(query, username)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func getByUsernamePath(username, path string) (*Object, error) {
 }
 
 func getAllPaths() ([]string, error) {
-	query := "SELECT path FROM objects"
+	query := "SELECT path FROM objects ORDER BY created_at DESC"
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
