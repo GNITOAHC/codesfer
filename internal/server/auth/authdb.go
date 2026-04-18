@@ -17,7 +17,7 @@ type User struct {
 	Email     string
 	Password  string
 	Username  string
-	CreatedAt string
+	CreatedAt int64
 }
 
 type Session struct {
@@ -26,8 +26,8 @@ type Session struct {
 	Name      string `json:"name"` // Public identifier for session management (not the actual session ID)
 	Location  string `json:"location"`
 	Agent     string `json:"agent"`
-	LastSeen  string `json:"last_seen"`
-	CreatedAt string `json:"created_at"`
+	LastSeen  int64  `json:"last_seen"`
+	CreatedAt int64  `json:"created_at"`
 }
 
 type AuthError string
@@ -59,7 +59,7 @@ func createTable() error {
             email VARCHAR(255) PRIMARY KEY,
 			password VARCHAR(255),
             username VARCHAR(255) UNIQUE,
-            created_at VARCHAR(255)
+            created_at INTEGER
         );
 		CREATE TABLE IF NOT EXISTS sessions (
             id VARCHAR(255) PRIMARY KEY,
@@ -67,8 +67,8 @@ func createTable() error {
 			name VARCHAR(255),
 			location VARCHAR(255),
 			agent VARCHAR(255),
-			last_seen VARCHAR(255),
-            created_at VARCHAR(255),
+			last_seen INTEGER,
+            created_at INTEGER,
 
 			FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
 	)`
@@ -110,7 +110,7 @@ func createUser(email, password, username string) error {
 	}
 	db.Exec(
 		"INSERT INTO users (email, password, username, created_at) VALUES (?, ?, ?, ?)",
-		email, hashed, username, time.Now().Format(time.RFC3339),
+		email, hashed, username, time.Now().Unix(),
 	)
 	return nil
 }
@@ -148,7 +148,7 @@ func createSession(email, agent, ip string) (string, error) {
 	}
 
 	query := "INSERT INTO sessions (id, email, name, location, agent, last_seen, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-	_, err = db.Exec(query, uniqueID, email, sessionName, location, agent, time.Now().Format(time.RFC3339), time.Now().Format(time.RFC3339))
+	_, err = db.Exec(query, uniqueID, email, sessionName, location, agent, time.Now().Unix(), time.Now().Unix())
 	if err != nil {
 		return "", err
 	}
@@ -214,7 +214,7 @@ func deleteSessionByName(email, name string) error {
 
 func updateSessionLastSeen(sessionID string) error {
 	query := "UPDATE sessions SET last_seen = ? WHERE id = ?"
-	_, err := db.Exec(query, time.Now().Format(time.RFC3339), sessionID)
+	_, err := db.Exec(query, time.Now().Unix(), sessionID)
 	if err != nil {
 		return err
 	}

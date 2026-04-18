@@ -5,8 +5,8 @@ type AccountSession struct {
 	Name      string `json:"name"` // Public identifier for session management
 	Location  string `json:"location"`
 	Agent     string `json:"agent"`
-	LastSeen  string `json:"last_seen"`
-	CreatedAt string `json:"created_at"`
+	LastSeen  int64  `json:"last_seen"`
+	CreatedAt int64  `json:"created_at"`
 	Current   bool   `json:"current"`
 }
 type AccountResponse struct {
