@@ -16,7 +16,7 @@ type Object struct {
 	Filename  string `json:"filename"`
 	Password  string `json:"password"`
 	Path      string `json:"path"`
-	CreatedAt string `json:"created_at"`
+	CreatedAt int64  `json:"created_at"`
 	Metadata  string `json:"metadata"`
 }
 
@@ -38,7 +38,7 @@ func createTable() error {
 			filename VARCHAR(255),           -- Object's filename, directory is separated by slashes
 			password VARCHAR(255),
             path VARCHAR(255) UNIQUE,        -- Path in object storage
-            created_at VARCHAR(255),
+            created_at INTEGER,
 			metadata TEXT,                   -- JSON string for additional metadata (TODO)
             UNIQUE (username, filename)
 	)`
@@ -68,7 +68,7 @@ func show(username string) ([]Object, error) {
 
 func insert(id, user, filename, password, path, metadata string) error {
 	query := "INSERT INTO objects (id, username, filename, password, path, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"
-	_, err := db.Exec(query, id, user, filename, password, path, time.Now().Format(time.RFC3339), metadata)
+	_, err := db.Exec(query, id, user, filename, password, path, time.Now().Unix(), metadata)
 	return err
 }
 
@@ -88,7 +88,7 @@ func upsert(id, user, filename, password, path, metadata string) error {
 
 	// Insert new record
 	query := "INSERT INTO objects (id, username, filename, password, path, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"
-	_, err = tx.Exec(query, id, user, filename, password, path, time.Now().Format(time.RFC3339), metadata)
+	_, err = tx.Exec(query, id, user, filename, password, path, time.Now().Unix(), metadata)
 	if err != nil {
 		return err
 	}

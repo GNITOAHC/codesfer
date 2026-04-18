@@ -7,6 +7,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"time"
 )
 
 type InspectFlags struct {
@@ -34,7 +35,7 @@ func Inspect(flags InspectFlags, key string) {
 	fmt.Printf("Key: %s\n", info.Key)
 	fmt.Printf("Owner: %s\n", info.Owner)
 	fmt.Printf("Path: %s\n", info.Path)
-	fmt.Printf("Created: %s\n", info.CreatedAt)
+	fmt.Printf("Created: %s\n", time.Unix(info.CreatedAt, 0).Format("2006-01-02 15:04:05"))
 	if info.Protected {
 		fmt.Printf("Protected: yes\n")
 	}

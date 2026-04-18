@@ -28,7 +28,7 @@ type SingleObject struct {
 	Key       string            `json:"key,omitempty"`
 	Path      string            `json:"path"`
 	Password  string            `json:"password,omitempty"`
-	CreatedAt string            `json:"created_at"`
+	CreatedAt int64             `json:"created_at"`
 	Meta      map[string]string `json:"meta,omitempty"`
 }
 type ListResponse []SingleObject
@@ -49,7 +49,7 @@ type InspectResponse struct {
 	Key       string         `json:"key"`
 	Owner     string         `json:"owner"`
 	Path      string         `json:"path"`
-	CreatedAt string         `json:"created_at"`
+	CreatedAt int64          `json:"created_at"`
 	Protected bool           `json:"protected"`
 	Metadata  map[string]any `json:"metadata,omitempty"`
 }

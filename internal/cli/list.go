@@ -21,12 +21,7 @@ func List() {
 	}
 
 	sort.Slice(objs, func(i, j int) bool {
-		ti, erri := time.Parse(time.RFC3339, objs[i].CreatedAt)
-		tj, errj := time.Parse(time.RFC3339, objs[j].CreatedAt)
-		if erri != nil || errj != nil {
-			return objs[i].CreatedAt > objs[j].CreatedAt
-		}
-		return ti.After(tj)
+		return objs[i].CreatedAt > objs[j].CreatedAt
 	})
 
 	const (
@@ -48,7 +43,7 @@ func List() {
 			colorYellow, obj.Key, colorReset,
 			colorWhite, obj.Path, colorReset,
 			pass,
-			colorGray, obj.CreatedAt, colorReset,
+			colorGray, time.Unix(obj.CreatedAt, 0).Format("2006-01-02 15:04:05"), colorReset,
 		)
 	}
 
