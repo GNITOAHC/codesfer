@@ -7,13 +7,40 @@ A CLI tool and self-hostable server for sharing code snippets and files with opt
 
 ## Installation
 
-Requires Go 1.24+.
+**Shell (Linux/macOS):**
 
 ```bash
-make all # Builds 'codesfer' (CLI) and 'codeserver' (Server) to ./build/
+curl -LsSf https://www.codesfer.io/install.sh | sh
 ```
 
-Or install from [releases](https://github.com/GNITOAHC/codesfer/releases).
+**PowerShell (Windows):**
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://www.codesfer.io/install.ps1 | iex"
+```
+
+**Homebrew (macOS):**
+
+```bash
+brew tap gnitoahc/tap
+brew install gnitoahc/tap/codesfer
+```
+
+**Go:**
+
+```bash
+go install github.com/gnitoahc/codesfer/cmd/codesfer@latest
+```
+
+**Binary:** Download pre-built releases from [GitHub releases](https://github.com/GNITOAHC/codesfer/releases).
+
+**From source** (requires Go 1.24+):
+
+```bash
+git clone https://github.com/GNITOAHC/codesfer.git
+cd codesfer
+make all # Builds 'codesfer' (CLI) and 'codeserver' (Server) to ./build/
+```
 
 ## CLI Usage
 
