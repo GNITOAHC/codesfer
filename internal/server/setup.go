@@ -12,10 +12,10 @@ func SetupEnv() {
 		"# Codeserver Env #\n" + //
 		"##################\n" +
 		"\n" +
-		"DB_DRIVER=sqlite\n" +
-		"DB_SOURCE=file:auth.db?cache=shared\n" +
+		"AUTH_DB_DRIVER=sqlite\n" +
+		"AUTH_DB_SOURCE=file:auth.db?cache=shared\n" +
 		"INDEX_DB_DRIVER=sqlite\n" +
-		"INDEX_DB_SOURCE=file:index.db?cache=shared\n" +
+		"INDEX_DB_SOURCE=file:object_storage.db?cache=shared\n" +
 		"OBJECT_STORAGE_DRIVER=sqlite # or r2\n" +
 		"OBJECT_STORAGE_SOURCE=file:object_storage.db?cache=shared\n" +
 		"\n" +

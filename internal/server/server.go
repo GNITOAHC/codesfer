@@ -26,10 +26,10 @@ func Serve(flags ServeFlags) {
 	dotenv.Load(flags.Dotenv) // Default to .env in cmd/codesfer-server/main.go
 	log.Println("Environment variables loaded from", flags.Dotenv)
 
-	driver := dotenv.Get("DB_DRIVER", "sqlite")
-	source := dotenv.Get("DB_SOURCE", "file:auth.db?cache=shared")
+	authDriver := dotenv.Get("AUTH_DB_DRIVER", "sqlite")
+	authSource := dotenv.Get("AUTH_DB_SOURCE", "file:auth.db?cache=shared")
 	indexDriver := dotenv.Get("INDEX_DB_DRIVER", "sqlite")
-	indexSource := dotenv.Get("INDEX_DB_SOURCE", "file:index.db?cache=shared")
+	indexSource := dotenv.Get("INDEX_DB_SOURCE", "file:object_storage.db?cache=shared")
 	backendDriver := dotenv.Get("OBJECT_STORAGE_DRIVER", "sqlite")
 
 	var backend object.ObjectStorage
@@ -50,6 +50,7 @@ func Serve(flags ServeFlags) {
 		backend = &sqlite.Storage{}
 		if err := backend.Init(context.Background(), sqlite.Config{
 			Source: dotenv.Get("OBJECT_STORAGE_SOURCE", "file:object_storage.db?cache=shared"),
+			Table:  "objects",
 		}); err != nil {
 			panic(err)
 		}
@@ -63,7 +64,7 @@ func Serve(flags ServeFlags) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("pong"))
 	})
-	handle(mux, "/auth/", http.StripPrefix("/auth", auth.AuthHandler(driver, source)))
+	handle(mux, "/auth/", http.StripPrefix("/auth", auth.AuthHandler(authDriver, authSource)))
 	handle(mux, "/storage/", http.StripPrefix("/storage", storage.StorageHandler(indexDriver, indexSource, backend)), authMiddleware)
 	handle(mux, "GET /download/{key}", http.HandlerFunc(storage.DownloadRoute))
 	// Mux definition end

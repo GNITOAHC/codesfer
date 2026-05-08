@@ -2,11 +2,14 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
 	_ "modernc.org/sqlite"
 )
+
+const tableName = "object_indices"
 
 var db *sql.DB
 
@@ -31,8 +34,8 @@ func connect(driver, source string) error {
 }
 
 func createTable() error {
-	query := `
-        CREATE TABLE IF NOT EXISTS objects (
+	query := fmt.Sprintf(`
+        CREATE TABLE IF NOT EXISTS %s (
             id VARCHAR(255) NOT NULL PRIMARY KEY,
 			username VARCHAR(255) NOT NULL,
 			filename VARCHAR(255),           -- Object's filename, directory is separated by slashes
@@ -41,14 +44,14 @@ func createTable() error {
             created_at INTEGER,
 			metadata TEXT,                   -- JSON string for additional metadata (TODO)
             UNIQUE (username, filename)
-	)`
+	)`, tableName)
 
 	_, err := db.Exec(query)
 	return err
 }
 
 func show(username string) ([]Object, error) {
-	query := "SELECT id, username, filename, password, path, created_at FROM objects WHERE username = ? ORDER BY created_at DESC"
+	query := fmt.Sprintf("SELECT id, username, filename, password, path, created_at FROM %s WHERE username = ? ORDER BY created_at DESC", tableName)
 	rows, err := db.Query(query, username)
 	if err != nil {
 		return nil, err
@@ -67,7 +70,7 @@ func show(username string) ([]Object, error) {
 }
 
 func insert(id, user, filename, password, path, metadata string) error {
-	query := "INSERT INTO objects (id, username, filename, password, path, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	query := fmt.Sprintf("INSERT INTO %s (id, username, filename, password, path, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)", tableName)
 	_, err := db.Exec(query, id, user, filename, password, path, time.Now().Unix(), metadata)
 	return err
 }
@@ -81,13 +84,13 @@ func upsert(id, user, filename, password, path, metadata string) error {
 	defer tx.Rollback()
 
 	// Remove existing record if any
-	_, err = tx.Exec("DELETE FROM objects WHERE id = ?", id)
+	_, err = tx.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = ?", tableName), id)
 	if err != nil {
 		return err
 	}
 
 	// Insert new record
-	query := "INSERT INTO objects (id, username, filename, password, path, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	query := fmt.Sprintf("INSERT INTO %s (id, username, filename, password, path, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)", tableName)
 	_, err = tx.Exec(query, id, user, filename, password, path, time.Now().Unix(), metadata)
 	if err != nil {
 		return err
@@ -100,7 +103,7 @@ func upsert(id, user, filename, password, path, metadata string) error {
 }
 
 func getFiles(username string) ([]Object, error) {
-	query := "SELECT filename FROM objects WHERE username = ? ORDER BY created_at DESC"
+	query := fmt.Sprintf("SELECT filename FROM %s WHERE username = ? ORDER BY created_at DESC", tableName)
 	rows, err := db.Query(query, username)
 	if err != nil {
 		return nil, err
@@ -118,7 +121,7 @@ func getFiles(username string) ([]Object, error) {
 }
 
 func haveFile(username, filename string) (bool, error) {
-	query := "SELECT id FROM objects WHERE username = ? AND filename = ?"
+	query := fmt.Sprintf("SELECT id FROM %s WHERE username = ? AND filename = ?", tableName)
 	row := db.QueryRow(query, username, filename)
 	var id string
 	if err := row.Scan(&id); err != nil {
@@ -131,7 +134,7 @@ func haveFile(username, filename string) (bool, error) {
 }
 
 func get(id string) (*Object, error) {
-	query := "SELECT id, username, filename, password, path, created_at, COALESCE(metadata, '') FROM objects WHERE id = ?"
+	query := fmt.Sprintf("SELECT id, username, filename, password, path, created_at, COALESCE(metadata, '') FROM %s WHERE id = ?", tableName)
 	row := db.QueryRow(query, id)
 	obj := &Object{}
 	err := row.Scan(&obj.ID, &obj.Username, &obj.Filename, &obj.Password, &obj.Path, &obj.CreatedAt, &obj.Metadata)
@@ -147,7 +150,7 @@ func get(id string) (*Object, error) {
 // removeByID removes the object with given id and returns the path in object storage
 // username should be provided to prevent unauthorized removal
 func removeByID(username, id string) (string, error) {
-	query := "DELETE FROM objects WHERE username = ? AND id = ? returning path"
+	query := fmt.Sprintf("DELETE FROM %s WHERE username = ? AND id = ? returning path", tableName)
 	var path string
 	if err := db.QueryRow(query, username, id).Scan(&path); err != nil {
 		return "", err
@@ -158,7 +161,7 @@ func removeByID(username, id string) (string, error) {
 // getByUsernamePath returns the object with given username and path.
 // The path here refers to the `filename` field that is stored in the db
 func getByUsernamePath(username, path string) (*Object, error) {
-	query := "SELECT id, username, filename, password, path, created_at, COALESCE(metadata, '') FROM objects WHERE username = ? AND filename = ?"
+	query := fmt.Sprintf("SELECT id, username, filename, password, path, created_at, COALESCE(metadata, '') FROM %s WHERE username = ? AND filename = ?", tableName)
 	row := db.QueryRow(query, username, path)
 	obj := &Object{}
 	err := row.Scan(&obj.ID, &obj.Username, &obj.Filename, &obj.Password, &obj.Path, &obj.CreatedAt, &obj.Metadata)
@@ -172,7 +175,7 @@ func getByUsernamePath(username, path string) (*Object, error) {
 }
 
 func getAllPaths() ([]string, error) {
-	query := "SELECT path FROM objects ORDER BY created_at DESC"
+	query := fmt.Sprintf("SELECT path FROM %s ORDER BY created_at DESC", tableName)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
