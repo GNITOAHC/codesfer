@@ -59,6 +59,27 @@ type Deleter interface {
 	Delete(ctx context.Context, key string) error
 }
 
+// CompletedPart records the ETag and number of a successfully uploaded multipart part.
+type CompletedPart struct {
+	ETag       string
+	PartNumber int32
+}
+
+// StreamingWriter allows backends that support a native multipart protocol to
+// expose individual upload steps. Implementing this interface enables each
+// client chunk to be forwarded to object storage immediately, avoiding the need
+// to reassemble the full file on disk before the final upload.
+type StreamingWriter interface {
+	// CreateMultipart begins a multipart upload and returns the upload ID.
+	CreateMultipart(ctx context.Context, key string, meta map[string]string) (uploadID string, err error)
+	// UploadPart uploads one part (1-indexed partNumber) of the given size.
+	UploadPart(ctx context.Context, key, uploadID string, partNumber int32, body io.Reader, size int64) (etag string, err error)
+	// CompleteMultipart finalises the upload using the provided completed parts.
+	CompleteMultipart(ctx context.Context, key, uploadID string, parts []CompletedPart) (Object, error)
+	// AbortMultipart cancels a multipart upload and releases its resources.
+	AbortMultipart(ctx context.Context, key, uploadID string) error
+}
+
 // ObjectStorage aggregates the full contract for object backends.
 type ObjectStorage interface {
 	Lifecycle

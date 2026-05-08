@@ -184,6 +184,82 @@ func (s *Storage) MultipartPut(ctx context.Context, key string, r io.Reader, par
 	return s.Stat(ctx, key)
 }
 
+// CreateMultipart begins a multipart upload and returns the upload ID.
+func (s *Storage) CreateMultipart(ctx context.Context, key string, meta map[string]string) (string, error) {
+	if err := s.ensureClient(); err != nil {
+		return "", err
+	}
+	resp, err := s.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+		Bucket:   aws.String(s.bucket),
+		Key:      aws.String(key),
+		Metadata: meta,
+	})
+	if err != nil {
+		return "", mapError(err)
+	}
+	return aws.ToString(resp.UploadId), nil
+}
+
+// UploadPart uploads one part of an in-progress multipart upload.
+func (s *Storage) UploadPart(ctx context.Context, key, uploadID string, partNumber int32, body io.Reader, size int64) (string, error) {
+	if err := s.ensureClient(); err != nil {
+		return "", err
+	}
+	input := &s3.UploadPartInput{
+		Bucket:     aws.String(s.bucket),
+		Key:        aws.String(key),
+		UploadId:   aws.String(uploadID),
+		PartNumber: aws.Int32(partNumber),
+		Body:       body,
+	}
+	if size >= 0 {
+		input.ContentLength = aws.Int64(size)
+	}
+	resp, err := s.client.UploadPart(ctx, input)
+	if err != nil {
+		return "", mapError(err)
+	}
+	return aws.ToString(resp.ETag), nil
+}
+
+// CompleteMultipart finalises a multipart upload.
+func (s *Storage) CompleteMultipart(ctx context.Context, key, uploadID string, parts []object.CompletedPart) (object.Object, error) {
+	if err := s.ensureClient(); err != nil {
+		return object.Object{}, err
+	}
+	completed := make([]types.CompletedPart, len(parts))
+	for i, p := range parts {
+		completed[i] = types.CompletedPart{
+			ETag:       aws.String(p.ETag),
+			PartNumber: aws.Int32(p.PartNumber),
+		}
+	}
+	if _, err := s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket:   aws.String(s.bucket),
+		Key:      aws.String(key),
+		UploadId: aws.String(uploadID),
+		MultipartUpload: &types.CompletedMultipartUpload{
+			Parts: completed,
+		},
+	}); err != nil {
+		return object.Object{}, mapError(err)
+	}
+	return s.Stat(ctx, key)
+}
+
+// AbortMultipart cancels a multipart upload and releases its resources.
+func (s *Storage) AbortMultipart(ctx context.Context, key, uploadID string) error {
+	if err := s.ensureClient(); err != nil {
+		return err
+	}
+	_, err := s.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+		Bucket:   aws.String(s.bucket),
+		Key:      aws.String(key),
+		UploadId: aws.String(uploadID),
+	})
+	return mapError(err)
+}
+
 // Get fetches metadata plus a streaming reader.
 func (s *Storage) Get(ctx context.Context, key string, rng *object.Range) (object.Object, io.ReadCloser, error) {
 	if err := s.ensureClient(); err != nil {
@@ -351,5 +427,6 @@ func mapError(err error) error {
 	return err
 }
 
-// Ensure Storage implements ObjectStorage interface.
+// Ensure Storage implements ObjectStorage and StreamingWriter interfaces.
 var _ object.ObjectStorage = (*Storage)(nil)
+var _ object.StreamingWriter = (*Storage)(nil)
