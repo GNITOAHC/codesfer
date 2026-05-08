@@ -112,7 +112,7 @@ func (s *Storage) Put(ctx context.Context, key string, r io.Reader, _ int64, con
 	return s.save(ctx, key, r, contentType, meta)
 }
 
-// MultipartPut streams large uploads; stored atomically for SQLite backend.
+// Deprecated: MultipartPut is unreachable in practice; see Writer.MultipartPut.
 func (s *Storage) MultipartPut(ctx context.Context, key string, r io.Reader, _ int64, meta map[string]string) (object.Object, error) {
 	return s.save(ctx, key, r, "", meta)
 }

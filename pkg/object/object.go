@@ -50,7 +50,10 @@ type Reader interface {
 type Writer interface {
 	// Put uploads content and returns stored metadata.
 	Put(ctx context.Context, key string, r io.Reader, sizeHint int64, contentType string, meta map[string]string) (Object, error)
-	// MultipartPut streams large content in parts; implementations may tune part handling internally.
+	// Deprecated: MultipartPut is unreachable in practice. The client caps
+	// non-chunked uploads at 90 MB, below the 100 MB server threshold that
+	// would trigger this path. Large files use the chunked upload flow backed
+	// by StreamingWriter instead.
 	MultipartPut(ctx context.Context, key string, r io.Reader, partSize int64, meta map[string]string) (Object, error)
 }
 

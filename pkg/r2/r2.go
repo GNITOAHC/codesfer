@@ -121,7 +121,7 @@ func (s *Storage) Put(ctx context.Context, key string, r io.Reader, sizeHint int
 	return metaObj, nil
 }
 
-// MultipartPut streams large uploads in parts.
+// Deprecated: MultipartPut is unreachable in practice; see Writer.MultipartPut.
 func (s *Storage) MultipartPut(ctx context.Context, key string, r io.Reader, partSize int64, meta map[string]string) (object.Object, error) {
 	if err := s.ensureClient(); err != nil {
 		return object.Object{}, err

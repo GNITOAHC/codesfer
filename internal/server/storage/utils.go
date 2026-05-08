@@ -53,7 +53,10 @@ func opupload(ctx context.Context, file io.Reader, size int64, key, username, pa
 		return "", errors.New("[op upload] [insert] insert failed: " + err.Error())
 	}
 
-	// Only upload after insert is successfull
+	// Only upload after insert is successfull.
+	// Note: the multipart branch is unreachable in practice — the client caps
+	// non-chunked uploads at 90 MB, which is below multipartThreshold (100 MB).
+	// Large files go through the chunked upload path (StreamingWriter) instead.
 	if size > multipartThreshold {
 		log.Print("Stream via multipart")
 		if _, err := objectStorage.MultipartPut(ctx, objectPath, file, 8<<20, nil); err != nil {
