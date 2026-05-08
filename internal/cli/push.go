@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"github.com/gnitoahc/codesfer/internal/client"
+	"github.com/gnitoahc/codesfer/pkg/api"
 	"log"
 	"os"
 	"path"
@@ -97,7 +98,12 @@ func Push(flags PushFlags, args []string) {
 		metadata["desc"] = flags.Desc
 	}
 
-	log.Printf("Uploading ...")
+	zipInfo, err := os.Stat(f.Name())
+	if err != nil {
+		log.Fatalf("Failed to stat zip file: %v", err)
+	}
+	log.Printf("Compressed size: %s", formatSize(zipInfo.Size()))
+
 	form := client.PushForm{
 		Key:      flags.Key,
 		Path:     customPath,
@@ -105,11 +111,34 @@ func Push(flags PushFlags, args []string) {
 		Force:    flags.Force,
 		Metadata: metadata,
 	}
-	resp, err := client.Push(form, f.Name())
+
+	const cloudflareLimit = 90 << 20 // 90 MB — stay under Cloudflare's 100 MB body limit
+
+	var resp *api.UploadResponse
+	if zipInfo.Size() > cloudflareLimit {
+		log.Printf("File exceeds 90 MB, switching to chunked upload")
+		resp, err = client.PushChunked(form, f.Name())
+	} else {
+		log.Printf("Uploading ...")
+		resp, err = client.Push(form, f.Name())
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Printf("ID: %s\n", resp.Uid)
 	fmt.Printf("Path: %s\n", resp.Path)
+}
+
+func formatSize(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }
