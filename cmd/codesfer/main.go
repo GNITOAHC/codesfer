@@ -173,6 +173,9 @@ func main() {
 	pullCmd.Flags().StringVarP(
 		&pullCmdFlags.Pass, "pass", "p", "", "Password for the code snippet if it is encrypted",
 	)
+	pullCmd.Flags().StringVarP(
+		&pullCmdFlags.File, "file", "f", "", "Extract only this path from the archive (e.g. dir/subdir/file.txt)",
+	)
 
 	// ================
 	// inspectCmd flags

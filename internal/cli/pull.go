@@ -8,6 +8,7 @@ import (
 type PullFlags struct {
 	Out  string
 	Pass string
+	File string
 }
 
 func Pull(flags PullFlags, code string) {
@@ -22,10 +23,14 @@ func Pull(flags PullFlags, code string) {
 		log.Fatalf("Pull failed: %v", err)
 	}
 
-	log.Printf("File downloaded: %s", zip)
-	log.Printf("Decompressing to %s", flags.Out)
-
-	err = client.Decompress(zip, flags.Out)
+	if flags.File != "" {
+		log.Printf("Extracting %s to %s", flags.File, flags.Out)
+		err = client.DecompressPath(zip, flags.File, flags.Out)
+	} else {
+		log.Printf("File downloaded: %s", zip)
+		log.Printf("Decompressing to %s", flags.Out)
+		err = client.Decompress(zip, flags.Out)
+	}
 	if err != nil {
 		log.Fatalf("Decompress failed: %v", err)
 	}
