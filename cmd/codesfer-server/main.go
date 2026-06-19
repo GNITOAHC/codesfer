@@ -23,10 +23,19 @@ var serveCmd = &cobra.Command{
 }
 
 var initCmd = &cobra.Command{
-	Use:   "init",
+	Use:   "init [dotenv]",
 	Short: "Initialize environment for codeserver",
+	Long:  "Initialize environment for codeserver. Optionally pass a target dotenv file path to create.",
+	Example: "" +
+		"  codeserver init\n" +
+		"  codeserver init .env.local",
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		server.SetupEnv()
+		dotenvPath := ""
+		if len(args) > 0 {
+			dotenvPath = args[0]
+		}
+		server.SetupEnv(dotenvPath)
 	},
 }
 

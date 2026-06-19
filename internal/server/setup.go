@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func SetupEnv() {
+func SetupEnv(dotenvPath string) {
 	initEnv := "" +
 		"##################\n" + //
 		"# Codeserver Env #\n" + //
@@ -26,6 +26,21 @@ func SetupEnv() {
 		"CF_BUCKET=\n" +
 		"\n" +
 		"# For more info: https://codesfer.io/self-hosting\n"
+
+	if dotenvPath != "" {
+		if _, err := os.Stat(dotenvPath); err == nil {
+			log.Fatalf("%s already exists.", dotenvPath)
+		} else if !os.IsNotExist(err) {
+			log.Fatal(err)
+		}
+
+		err := os.WriteFile(dotenvPath, []byte(initEnv), 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Created " + dotenvPath + " file with default values.")
+		return
+	}
 
 	// Check if .env file already exists, if not, create one with default values
 	if _, err := os.Stat(".env"); os.IsNotExist(err) {
