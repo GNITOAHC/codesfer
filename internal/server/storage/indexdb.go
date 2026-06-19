@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 const tableName = "object_indices"
 
 var db *sql.DB
+
+var ErrKeyOwnedByAnotherUser = errors.New("key already belongs to another user")
 
 type Object struct {
 	ID        string `json:"id"`
@@ -75,7 +78,7 @@ func insert(id, user, filename, password, path, metadata string) error {
 	return err
 }
 
-// upsert will overwrite existing record if any
+// upsert will overwrite an existing record only when it belongs to the same user.
 func upsert(id, user, filename, password, path, metadata string) error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -83,8 +86,16 @@ func upsert(id, user, filename, password, path, metadata string) error {
 	}
 	defer tx.Rollback()
 
-	// Remove existing record if any
-	_, err = tx.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = ?", tableName), id)
+	var owner string
+	err = tx.QueryRow(fmt.Sprintf("SELECT username FROM %s WHERE id = ?", tableName), id).Scan(&owner)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if err == nil && owner != user {
+		return fmt.Errorf("%w: %s", ErrKeyOwnedByAnotherUser, id)
+	}
+
+	_, err = tx.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = ? AND username = ?", tableName), id, user)
 	if err != nil {
 		return err
 	}
