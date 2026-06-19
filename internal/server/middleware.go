@@ -14,6 +14,16 @@ func handle(mux *http.ServeMux, pattern string, handler http.Handler, middleware
 	mux.Handle(pattern, handler)
 }
 
+// chain applies middlewares around the entire mux and returns the wrapped
+// handler. Middlewares run in the order given, outermost first.
+func chain(handler http.Handler, middlewares ...middleware) http.Handler {
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		handler = middlewares[i](handler)
+	}
+
+	return handler
+}
+
 // authMiddleware will check if user is logged in and assign custom headers to the request
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

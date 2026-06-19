@@ -67,6 +67,8 @@ func Serve(flags ServeFlags) {
 	handle(mux, "/auth/", http.StripPrefix("/auth", auth.AuthHandler(authDriver, authSource)))
 	handle(mux, "/storage/", http.StripPrefix("/storage", storage.StorageHandler(indexDriver, indexSource, backend)), authMiddleware)
 	handle(mux, "GET /download/{key}", http.HandlerFunc(storage.DownloadRoute))
+
+	handler := chain(mux, corsMiddleware(allowedOrigins()))
 	// Mux definition end
 
 	log.Printf("Starting server on port %d", flags.Port)
@@ -81,5 +83,5 @@ func Serve(flags ServeFlags) {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	log.Fatal(http.Serve(lis, mux))
+	log.Fatal(http.Serve(lis, handler))
 }
