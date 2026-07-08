@@ -18,6 +18,7 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the codeserver",
 	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Println("Running codeserver version", version.Version)
 		server.Serve(serveFlags)
 	},
 }
