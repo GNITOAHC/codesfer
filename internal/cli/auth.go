@@ -2,10 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"github.com/gnitoahc/codesfer/internal/client"
 	"log"
 	"syscall"
 	"time"
+
+	"github.com/gnitoahc/codesfer/internal/client"
 
 	"golang.org/x/term"
 )
@@ -23,8 +24,8 @@ func Account() {
 			fmt.Printf("%s", "\033[36m") // cyan
 		}
 		fmt.Printf(
-			"[%d] Session: Location: %s, Agent: %s, Last seen: %s, Created at: %s\n",
-			i, session.Location, session.Agent, formatLastSeen(session.LastSeen), time.Unix(session.CreatedAt, 0).Format("2006-01-02"),
+			"[%d] Session: Location: %s, Agent: %s, Last seen: %s, Created at: %s (name: %s)\n",
+			i, session.Location, session.Agent, formatLastSeen(session.LastSeen), time.Unix(session.CreatedAt, 0).Format("2006-01-02"), session.Name,
 		)
 		if session.Current {
 			fmt.Printf("%s", "\033[0m") // reset
