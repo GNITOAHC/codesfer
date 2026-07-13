@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 )
 
 var reservedUsername = [3]string{"anon", "admin", "root"}
@@ -172,6 +173,40 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("logout success"))
 }
 
+// shortUserAgent reduces a full User-Agent string to "Browser (OS)".
+// ponytail: keyword matching, swap in a UA parser lib if more detail needed
+func shortUserAgent(ua string) string {
+	browser := "Unknown"
+	switch {
+	case strings.Contains(ua, "Edg/"):
+		browser = "Edge"
+	case strings.Contains(ua, "OPR/"):
+		browser = "Opera"
+	case strings.Contains(ua, "Chrome/"):
+		browser = "Chrome"
+	case strings.Contains(ua, "Firefox/"):
+		browser = "Firefox"
+	case strings.Contains(ua, "Safari/"):
+		browser = "Safari"
+	case strings.Contains(ua, "curl/"):
+		browser = "curl"
+	}
+	os := "Unknown"
+	switch {
+	case strings.Contains(ua, "Android"):
+		os = "Android"
+	case strings.Contains(ua, "iPhone"), strings.Contains(ua, "iPad"):
+		os = "iOS"
+	case strings.Contains(ua, "Windows"):
+		os = "Windows"
+	case strings.Contains(ua, "Mac OS X"):
+		os = "macOS"
+	case strings.Contains(ua, "Linux"):
+		os = "Linux"
+	}
+	return browser + " (" + os + ")"
+}
+
 func me(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
 	if sessionID == "" {
@@ -197,7 +232,7 @@ func me(w http.ResponseWriter, r *http.Request) {
 		respSessions = append(respSessions, api.AccountSession{
 			Name:      session.Name,
 			Location:  session.Location,
-			Agent:     session.Agent,
+			Agent:     shortUserAgent(session.Agent),
 			LastSeen:  session.LastSeen,
 			CreatedAt: session.CreatedAt,
 			Current:   session.ID == sessionID,
