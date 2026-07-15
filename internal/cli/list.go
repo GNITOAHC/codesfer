@@ -51,5 +51,9 @@ func List() {
 		fmt.Println("No codes found.")
 	}
 
-	fmt.Printf("\nShare it even more easily with link: %s%s/download/<code>.zip%s\n", colorCyan, client.BaseURL, colorReset)
+	shareLink := client.BaseURL + "/download/<code>.zip"
+	if client.ClientURLHealthy() {
+		shareLink = client.ClientURL + "/d/<code>"
+	}
+	fmt.Printf("\nShare it even more easily with link: %s%s%s\n", colorCyan, shareLink, colorReset)
 }
