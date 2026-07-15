@@ -21,6 +21,7 @@ var pushCmd = &cobra.Command{
 	Use:   "push [file1] [file2] ...",
 	Short: "Send a code snippet",
 	Long:  `Send a code snippet. This command allows you to send a code snippet to another user.`,
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		cli.Push(pushCmdFlags, args)
 	},
