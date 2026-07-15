@@ -75,8 +75,8 @@ func DownloadRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if obj.Password != "" {
-		http.Error(w, "object is password protected, use CLI to download", http.StatusUnauthorized)
+	if obj.Password != "" && r.URL.Query().Get("password") != obj.Password {
+		http.Error(w, "object is password protected, provide ?password=<password> or use CLI to download", http.StatusUnauthorized)
 		return
 	}
 
