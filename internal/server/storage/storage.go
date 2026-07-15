@@ -109,10 +109,11 @@ func list(w http.ResponseWriter, r *http.Request) {
 	response := api.ListResponse{}
 	for _, obj := range objs {
 		response = append(response, api.SingleObject{
-			Key:       obj.ID,
-			Password:  obj.Password,
-			Path:      obj.Path,
-			CreatedAt: obj.CreatedAt,
+			Key:         obj.ID,
+			Password:    obj.Password,
+			Path:        obj.Path,
+			CreatedAt:   obj.CreatedAt,
+			AccessScope: obj.AccessScope,
 		})
 	}
 	w.WriteHeader(http.StatusOK)

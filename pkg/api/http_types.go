@@ -25,11 +25,12 @@ type RegisterResponse string
 
 // Endpoint: /storage/list
 type SingleObject struct {
-	Key       string            `json:"key,omitempty"`
-	Path      string            `json:"path"`
-	Password  string            `json:"password,omitempty"`
-	CreatedAt int64             `json:"created_at"`
-	Meta      map[string]string `json:"meta,omitempty"`
+	Key         string            `json:"key,omitempty"`
+	Path        string            `json:"path"`
+	Password    string            `json:"password,omitempty"`
+	CreatedAt   int64             `json:"created_at"`
+	Meta        map[string]string `json:"meta,omitempty"`
+	AccessScope string            `json:"access_scope"` // owner | authenticated | public
 }
 type ListResponse []SingleObject
 
