@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 )
 
@@ -204,21 +203,7 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 func download(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Query().Get("key")
 	pwd := r.URL.Query().Get("password")
-	// If contains multiple slashes, it must be username/path/path
-	// If contains one slash, it could be either username/uid or username/path
-	// If contains no slash, it must be uid
-	uid, username, path := func() (string, string, string) {
-		if !strings.Contains(key, "/") {
-			return key, "", "" // uid
-		}
-		parts := strings.SplitN(key, "/", 2)
-		username := parts[0]
-		if strings.Contains(parts[1], "/") {
-			return "", username, parts[1] // username/path
-		} else {
-			return parts[1], username, parts[1] // username/path or username/uid
-		}
-	}()
+	uid, username, path := parseKey(key)
 
 	log.Printf("[/storage/download] user %s is trying to download object, key: %s", r.Header.Get("X-Username"), key)
 	log.Printf("  uid: %s, username: %s, path: %s", uid, username, path)
@@ -649,20 +634,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Query().Get("key")
 	pwd := r.URL.Query().Get("password")
 	currentUser := r.Header.Get("X-Username")
-
-	// Parse key - same logic as download()
-	uid, username, path := func() (string, string, string) {
-		if !strings.Contains(key, "/") {
-			return key, "", "" // uid
-		}
-		parts := strings.SplitN(key, "/", 2)
-		username := parts[0]
-		if strings.Contains(parts[1], "/") {
-			return "", username, parts[1] // username/path
-		} else {
-			return parts[1], username, parts[1] // username/path or username/uid
-		}
-	}()
+	uid, username, path := parseKey(key) // Parse key - same logic as download()
 
 	log.Printf("[/storage/info] user %s is inspecting object, key: %s", currentUser, key)
 	log.Printf("  uid: %s, username: %s, path: %s", uid, username, path)

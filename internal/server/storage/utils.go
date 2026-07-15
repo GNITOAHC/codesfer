@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// generateID generates a random string of length n
 func generateID(n int) (string, error) {
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
 	b := make([]byte, n)
@@ -20,6 +21,24 @@ func generateID(n int) (string, error) {
 		b[i] = chars[int(b[i])%len(chars)]
 	}
 	return string(b), nil
+}
+
+// parseKey extracts the key from a path
+// key: <uid> || <username>/<uid> || <username>/<path>
+func parseKey(key string) (string, string, string) {
+	// If contains multiple slashes, it must be username/path/path
+	// If contains one slash, it could be either username/uid or username/path
+	// If contains no slash, it must be uid
+	if !strings.Contains(key, "/") {
+		return key, "", "" // uid
+	}
+	parts := strings.SplitN(key, "/", 2)
+	username := parts[0]
+	if strings.Contains(parts[1], "/") {
+		return "", username, parts[1] // username/path
+	} else {
+		return parts[1], username, parts[1] // username/path or username/uid
+	}
 }
 
 // objPath returns the path to object inside object storage
