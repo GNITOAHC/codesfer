@@ -11,11 +11,12 @@ import (
 )
 
 type PushFlags struct {
-	Path  string
-	Pass  string
-	Key   string
-	Desc  string
-	Force bool
+	Path   string
+	Pass   string
+	Key    string
+	Desc   string
+	Force  bool
+	Access string
 }
 
 // sanitizePath ensures the path contains only allowed characters i.e. A~Z, a~z, 0~9, _, - and /
@@ -64,6 +65,13 @@ func Push(flags PushFlags, args []string) {
 		colorReset  = "\033[0m"
 	)
 
+	// Validate before compressing anything; the server rejects unknown scopes too.
+	switch flags.Access {
+	case "", "owner", "authenticated", "public":
+	default:
+		log.Fatalf("invalid --access %q (want owner, authenticated or public)", flags.Access)
+	}
+
 	customPath := getPath(flags, args)
 
 	sessionID := client.ReadSessionID()
@@ -109,6 +117,7 @@ func Push(flags PushFlags, args []string) {
 		Path:     customPath,
 		Password: flags.Pass,
 		Force:    flags.Force,
+		Access:   flags.Access,
 		Metadata: metadata,
 	}
 

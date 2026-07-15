@@ -21,7 +21,38 @@ type PushForm struct {
 	Path     string
 	Password string
 	Force    bool
+	Access   string // access scope: owner | authenticated | public (empty = server default)
 	Metadata map[string]any
+}
+
+// writeFormFields adds the optional PushForm fields shared by the plain and
+// chunked upload requests to the multipart writer.
+func writeFormFields(writer *multipart.Writer, form PushForm) error {
+	fields := []struct{ name, value string }{
+		{"key", form.Key},
+		{"path", form.Path},
+		{"password", form.Password},
+		{"access", form.Access},
+	}
+	if form.Force {
+		fields = append(fields, struct{ name, value string }{"force", "true"})
+	}
+	for _, f := range fields {
+		if f.value == "" {
+			continue
+		}
+		if err := writer.WriteField(f.name, f.value); err != nil {
+			return err
+		}
+	}
+	if form.Metadata != nil {
+		metaJSON, err := json.Marshal(form.Metadata)
+		if err != nil {
+			return err
+		}
+		return writer.WriteField("meta", string(metaJSON))
+	}
+	return nil
 }
 
 func Push(form PushForm, zipFile string) (*api.UploadResponse, error) {
@@ -45,43 +76,8 @@ func Push(form PushForm, zipFile string) (*api.UploadResponse, error) {
 		return nil, err
 	}
 
-	// Add the customName field (key)
-	if form.Key != "" {
-		if err = writer.WriteField("key", form.Key); err != nil {
-			return nil, err
-		}
-	}
-
-	// Add the customName field (path)
-	if form.Path != "" {
-		if err = writer.WriteField("path", form.Path); err != nil {
-			return nil, err
-		}
-	}
-
-	// Add the customName field (password)
-	if form.Password != "" {
-		if err = writer.WriteField("password", form.Password); err != nil {
-			return nil, err
-		}
-	}
-
-	// Add the customName field (force)
-	if form.Force {
-		if err = writer.WriteField("force", "true"); err != nil {
-			return nil, err
-		}
-	}
-
-	// Add metadata field as JSON
-	if form.Metadata != nil {
-		metaJSON, err := json.Marshal(form.Metadata)
-		if err != nil {
-			return nil, err
-		}
-		if err = writer.WriteField("meta", string(metaJSON)); err != nil {
-			return nil, err
-		}
+	if err = writeFormFields(writer, form); err != nil {
+		return nil, err
 	}
 
 	// Close writer to finalize the body
@@ -200,34 +196,8 @@ func pushChunk(form PushForm, uploadID string, chunkIndex, totalChunks int, chun
 		return nil, err
 	}
 
-	if form.Key != "" {
-		if err := writer.WriteField("key", form.Key); err != nil {
-			return nil, err
-		}
-	}
-	if form.Path != "" {
-		if err := writer.WriteField("path", form.Path); err != nil {
-			return nil, err
-		}
-	}
-	if form.Password != "" {
-		if err := writer.WriteField("password", form.Password); err != nil {
-			return nil, err
-		}
-	}
-	if form.Force {
-		if err := writer.WriteField("force", "true"); err != nil {
-			return nil, err
-		}
-	}
-	if form.Metadata != nil {
-		metaJSON, err := json.Marshal(form.Metadata)
-		if err != nil {
-			return nil, err
-		}
-		if err := writer.WriteField("meta", string(metaJSON)); err != nil {
-			return nil, err
-		}
+	if err := writeFormFields(writer, form); err != nil {
+		return nil, err
 	}
 
 	if err := writer.Close(); err != nil {
