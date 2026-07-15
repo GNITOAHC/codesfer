@@ -40,6 +40,7 @@ type chunkSession struct {
 	password string
 	force    bool
 	meta     string
+	scope    string
 	username string
 }
 
@@ -142,6 +143,11 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 	path := r.FormValue("path")
 	password := r.FormValue("password")
 	meta := r.FormValue("meta")
+	scope, err := normalizeScope(r.FormValue("access"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if path == "" || path == "." || path == "/" { // path gaurd
 		path = header.Filename
 	}
@@ -185,7 +191,7 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 		overwrite = true
 	}
 
-	uid, err := opupload(r.Context(), file, header.Size, key, username, password, path, overwrite, meta)
+	uid, err := opupload(r.Context(), file, header.Size, key, username, password, path, overwrite, meta, scope)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -201,11 +207,14 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 // download will return the archived file to user according to the key
 // key: <uid> || <username>/<uid> || <username>/<path>
 func download(w http.ResponseWriter, r *http.Request) {
+	// Anonymous downloads allowed; checkAccess gates by scope and password.
+	currentUser := r.Header.Get("X-Username")
+
 	key := r.URL.Query().Get("key")
 	pwd := r.URL.Query().Get("password")
 	uid, username, path := parseKey(key)
 
-	log.Printf("[/storage/download] user %s is trying to download object, key: %s", r.Header.Get("X-Username"), key)
+	log.Printf("[/storage/download] user %s is trying to download object, key: %s", currentUser, key)
 	log.Printf("  uid: %s, username: %s, path: %s", uid, username, path)
 
 	var obj *Object
@@ -231,9 +240,9 @@ func download(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if obj.Password != "" && pwd != obj.Password {
-		log.Printf("Invalid password, returning StatusUnauthorized %d", http.StatusUnauthorized)
-		http.Error(w, "invalid password", http.StatusUnauthorized)
+	if status, msg, gate := checkAccess(obj, currentUser, pwd); status != 0 {
+		log.Printf("  Access denied (%s), returning %d", gate, status)
+		writeJSONError(w, status, msg, gate)
 		return
 	}
 
@@ -344,6 +353,12 @@ func uploadChunk(w http.ResponseWriter, r *http.Request, username string) {
 
 	_, supportsStreaming := objectStorage.(object.StreamingWriter)
 
+	scope, err := normalizeScope(r.FormValue("access"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Get or create the session on first chunk arrival.
 	chunkSessionsMu.Lock()
 	session, exists := chunkSessions[uploadID]
@@ -357,6 +372,7 @@ func uploadChunk(w http.ResponseWriter, r *http.Request, username string) {
 			password:  r.FormValue("password"),
 			force:     r.FormValue("force") == "true",
 			meta:      r.FormValue("meta"),
+			scope:     scope,
 			username:  username,
 		}
 		if supportsStreaming {
@@ -501,9 +517,9 @@ func uploadChunk(w http.ResponseWriter, r *http.Request, username string) {
 		}
 
 		if session.force {
-			err = upsert(key, session.username, session.path, session.password, session.r2ObjectPath, session.meta)
+			err = upsert(key, session.username, session.path, session.password, session.r2ObjectPath, session.meta, session.scope)
 		} else {
-			err = insert(key, session.username, session.path, session.password, session.r2ObjectPath, session.meta)
+			err = insert(key, session.username, session.path, session.password, session.r2ObjectPath, session.meta, session.scope)
 		}
 		if err != nil {
 			http.Error(w, "failed to save record: "+err.Error(), http.StatusInternalServerError)
@@ -615,7 +631,7 @@ func uploadChunk(w http.ResponseWriter, r *http.Request, username string) {
 		}
 	}
 
-	uid, err := opupload(r.Context(), pr, totalSize, session.key, session.username, session.password, path, session.force, session.meta)
+	uid, err := opupload(r.Context(), pr, totalSize, session.key, session.username, session.password, path, session.force, session.meta, session.scope)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -662,11 +678,9 @@ func info(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Access control: bypass password check if current user is the owner
-	isOwner := currentUser != "" && currentUser == obj.Username
-	if obj.Password != "" && !isOwner && pwd != obj.Password {
-		log.Printf("  Access denied: password protected and user is not owner")
-		http.Error(w, "invalid password", http.StatusUnauthorized)
+	if status, msg, gate := checkAccess(obj, currentUser, pwd); status != 0 {
+		log.Printf("  Access denied (%s), returning %d", gate, status)
+		writeJSONError(w, status, msg, gate)
 		return
 	}
 
@@ -680,11 +694,12 @@ func info(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(api.InspectResponse{
-		Key:       obj.ID,
-		Owner:     obj.Username,
-		Path:      obj.Filename,
-		CreatedAt: obj.CreatedAt,
-		Protected: obj.Password != "",
-		Metadata:  metadata,
+		Key:         obj.ID,
+		Owner:       obj.Username,
+		Path:        obj.Filename,
+		CreatedAt:   obj.CreatedAt,
+		Protected:   obj.Password != "",
+		AccessScope: obj.AccessScope,
+		Metadata:    metadata,
 	})
 }

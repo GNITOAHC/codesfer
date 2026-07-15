@@ -46,10 +46,11 @@ type RemoveResponse struct {
 
 // Endpoint: /storage/info
 type InspectResponse struct {
-	Key       string         `json:"key"`
-	Owner     string         `json:"owner"`
-	Path      string         `json:"path"`
-	CreatedAt int64          `json:"created_at"`
-	Protected bool           `json:"protected"`
-	Metadata  map[string]any `json:"metadata,omitempty"`
+	Key         string         `json:"key"`
+	Owner       string         `json:"owner"`
+	Path        string         `json:"path"`
+	CreatedAt   int64          `json:"created_at"`
+	Protected   bool           `json:"protected"`
+	AccessScope string         `json:"access_scope"` // owner | authenticated | public
+	Metadata    map[string]any `json:"metadata,omitempty"`
 }

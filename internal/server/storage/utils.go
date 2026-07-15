@@ -3,12 +3,50 @@ package storage
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"strings"
 )
+
+// checkAccess decides whether username (empty = anonymous) may read obj with
+// the supplied password. Returns status 0 when allowed, otherwise the HTTP
+// status plus msg/gate for writeJSONError; the gate ("auth" or "password")
+// tells the frontend which prompt to show. Owner-scoped objects are reported
+// as 404 to other users, and the owner bypasses the password gate.
+func checkAccess(obj *Object, username, password string) (status int, msg, gate string) {
+	if username != "" && username == obj.Username {
+		return 0, "", ""
+	}
+	switch obj.AccessScope {
+	case ScopeOwner:
+		if username == "" {
+			return http.StatusUnauthorized, "login required", "auth"
+		}
+		return http.StatusNotFound, "not found", ""
+	case ScopeAuthenticated:
+		if username == "" {
+			return http.StatusUnauthorized, "login required", "auth"
+		}
+	}
+	if obj.Password != "" && password != obj.Password {
+		return http.StatusUnauthorized, "password required", "password"
+	}
+	return 0, "", ""
+}
+
+func writeJSONError(w http.ResponseWriter, status int, msg, gate string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	resp := map[string]string{"error": msg}
+	if gate != "" {
+		resp["gate"] = gate
+	}
+	json.NewEncoder(w).Encode(resp)
+}
 
 // generateID generates a random string of length n
 func generateID(n int) (string, error) {
@@ -47,7 +85,7 @@ func objPath(username, path string) string {
 }
 
 // opupload will upload a file to object storage cloud and insert a record to database
-func opupload(ctx context.Context, file io.Reader, size int64, key, username, password, path string, overwrite bool, metadata string) (string, error) {
+func opupload(ctx context.Context, file io.Reader, size int64, key, username, password, path string, overwrite bool, metadata, scope string) (string, error) {
 	const multipartThreshold = 100 << 20 // 100 MB
 	var err error
 
@@ -63,10 +101,10 @@ func opupload(ctx context.Context, file io.Reader, size int64, key, username, pa
 
 	if overwrite {
 		log.Print("[op upload] overwrite is true, upsert record")
-		err = upsert(key, username, path, password, objectPath, metadata)
+		err = upsert(key, username, path, password, objectPath, metadata, scope)
 	} else {
 		log.Print("[op upload] overwrite is false, insert record")
-		err = insert(key, username, path, password, objectPath, metadata)
+		err = insert(key, username, path, password, objectPath, metadata, scope)
 	}
 	if err != nil {
 		return "", errors.New("[op upload] [insert] insert failed: " + err.Error())

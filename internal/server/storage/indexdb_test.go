@@ -26,11 +26,11 @@ func setupIndexDB(t *testing.T) {
 func TestUpsertRejectsCrossUserKeyOverwrite(t *testing.T) {
 	setupIndexDB(t)
 
-	if err := insert("shared", "alice", "alice.zip", "", "alice/alice.zip", "{}"); err != nil {
+	if err := insert("shared", "alice", "alice.zip", "", "alice/alice.zip", "{}", ScopePublic); err != nil {
 		t.Fatalf("insert alice object: %v", err)
 	}
 
-	err := upsert("shared", "bob", "bob.zip", "", "bob/bob.zip", "{}")
+	err := upsert("shared", "bob", "bob.zip", "", "bob/bob.zip", "{}", ScopePublic)
 	if !errors.Is(err, ErrKeyOwnedByAnotherUser) {
 		t.Fatalf("upsert cross-user key: got %v want ErrKeyOwnedByAnotherUser", err)
 	}
@@ -50,11 +50,11 @@ func TestUpsertRejectsCrossUserKeyOverwrite(t *testing.T) {
 func TestUpsertAllowsSameUserKeyOverwrite(t *testing.T) {
 	setupIndexDB(t)
 
-	if err := insert("shared", "alice", "old.zip", "", "alice/old.zip", "{}"); err != nil {
+	if err := insert("shared", "alice", "old.zip", "", "alice/old.zip", "{}", ScopePublic); err != nil {
 		t.Fatalf("insert alice object: %v", err)
 	}
 
-	if err := upsert("shared", "alice", "new.zip", "secret", "alice/new.zip", `{"desc":"updated"}`); err != nil {
+	if err := upsert("shared", "alice", "new.zip", "secret", "alice/new.zip", `{"desc":"updated"}`, ScopePublic); err != nil {
 		t.Fatalf("upsert same-user key: %v", err)
 	}
 

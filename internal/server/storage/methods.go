@@ -2,15 +2,12 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/gnitoahc/codesfer/pkg/object"
 )
 
 func RemoveOrphanedObject() error {
@@ -58,35 +55,34 @@ func DownloadRoute(w http.ResponseWriter, r *http.Request) {
 	key := strings.TrimRight(r.PathValue("key"), ".zip")
 	log.Printf("[/download] anonymous user is trying to download object, key: %s", key)
 
-	var obj *Object
-	var err error
-	if obj, err = get(key); obj != nil || err != nil {
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		log.Printf("  Object found by key: %s", obj.ID)
-	} else {
-		http.Error(w, "object not found", http.StatusNotFound)
+	obj, err := get(key)
+	if err != nil {
+		log.Printf("  index lookup error: %v", err)
+		writeJSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}
+	if obj == nil {
+		writeJSONError(w, http.StatusNotFound, "not found", "")
+		return
+	}
+	log.Printf("  Object found by key: %s", obj.ID)
 
 	if servePreview(w, r, obj) {
 		return
 	}
 
-	if obj.Password != "" && r.URL.Query().Get("password") != obj.Password {
-		http.Error(w, "object is password protected, provide ?password=<password> or use CLI to download", http.StatusUnauthorized)
+	// This route treats every viewer as anonymous: public objects gate on
+	// password only, scoped objects always ask for login (use /storage/download
+	// for authenticated access).
+	if status, msg, gate := checkAccess(obj, "", r.URL.Query().Get("password")); status != 0 {
+		writeJSONError(w, status, msg, gate)
 		return
 	}
 
 	meta, body, err := objectStorage.Get(r.Context(), obj.Path, nil)
 	if err != nil {
-		status := http.StatusInternalServerError
-		if errors.Is(err, object.ErrNotFound) {
-			status = http.StatusNotFound
-		}
-		http.Error(w, err.Error(), status)
+		log.Printf("  object storage read error: %v", err)
+		writeJSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}
 	defer body.Close()

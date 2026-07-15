@@ -164,6 +164,10 @@ func main() {
 	pushCmd.Flags().BoolVarP(
 		&pushCmdFlags.Force, "force", "f", false, "Overwrite existing key if exists, only use it when you want to replace an existing key",
 	)
+	pushCmd.Flags().StringVarP(
+		&pushCmdFlags.Access, "access", "a", "",
+		"Access scope: owner, authenticated or public (default: public)",
+	)
 
 	// =============
 	// pullCmd flags
