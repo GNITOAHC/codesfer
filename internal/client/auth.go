@@ -13,6 +13,9 @@ import (
 	"strings"
 )
 
+// ErrUnauthorized is returned when the server rejects the session (401).
+var ErrUnauthorized = errors.New("unauthorized, session not found, please log in")
+
 // makePaths will make sure the given directory exists, if not, it will be created
 func makePaths(path string) error {
 	err := os.MkdirAll(path, 0755)
@@ -208,6 +211,9 @@ func AccountInfo(sessionID string) (*api.AccountResponse, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, ErrUnauthorized
+	}
 	if resp.StatusCode != http.StatusOK {
 		// Read plain text from response body
 		errmsg, err := io.ReadAll(resp.Body)

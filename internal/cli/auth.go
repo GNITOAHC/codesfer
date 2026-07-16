@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"syscall"
@@ -53,8 +54,16 @@ func formatLastSeen(lastSeen int64) string {
 func Login() {
 	session := client.ReadSessionID()
 	if session != "" {
-		fmt.Println("You are already logged in. Logout first to sign in to different account.")
-		return
+		_, err := client.AccountInfo(session)
+		if err == nil {
+			fmt.Println("You are already logged in. Logout first to sign in to different account.")
+			return
+		}
+		if !errors.Is(err, client.ErrUnauthorized) {
+			log.Fatal(err) // network/server error: don't wipe a possibly-valid session
+		}
+		client.RemoveSessionID()
+		fmt.Println("Stored session is no longer valid. Continuing with login...")
 	}
 
 	var email string
