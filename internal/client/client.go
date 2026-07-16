@@ -4,9 +4,9 @@ package client
 import "time"
 
 const (
-	configDir   = ".codesfer" // This should be in the user's home directory
-	sessionFile = "session"   // This should be in the config directory
-	baseURLFile = "base_url"
+	configDir     = ".codesfer" // This should be in the user's home directory
+	sessionFile   = "session"   // This should be in the config directory
+	baseURLFile   = "base_url"
 	clientURLFile = "client_url"
 )
 

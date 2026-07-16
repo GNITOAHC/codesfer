@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -27,6 +28,65 @@ func init() {
 	if u := readURLOverride(filepath.Join(home, configDir, clientURLFile)); u != "" {
 		ClientURL = u
 	}
+}
+
+// configKeyFiles maps user-facing config keys to their override files in configDir.
+var configKeyFiles = map[string]string{
+	"base_url":   baseURLFile,
+	"client_url": clientURLFile,
+}
+
+// configFilePath resolves a config key to its override file path.
+func configFilePath(key string) (string, error) {
+	name, ok := configKeyFiles[key]
+	if !ok {
+		return "", fmt.Errorf("unknown config key: %q (want base_url or client_url)", key)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, configDir, name), nil
+}
+
+// SetConfig validates value as a URL and writes it to the key's override file.
+func SetConfig(key, value string) error {
+	path, err := configFilePath(key)
+	if err != nil {
+		return err
+	}
+	value = strings.TrimSuffix(strings.TrimSpace(value), "/")
+	if _, err := url.ParseRequestURI(value); err != nil {
+		return err
+	}
+	if err := makePaths(filepath.Dir(path)); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(value), 0644)
+}
+
+// RemoveConfig deletes the key's override file so the built-in default applies.
+func RemoveConfig(key string) error {
+	path, err := configFilePath(key)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+// GetConfig returns the effective value for a config key
+// (init already applied any override file on top of the built-in default).
+func GetConfig(key string) (string, error) {
+	switch key {
+	case "base_url":
+		return BaseURL, nil
+	case "client_url":
+		return ClientURL, nil
+	}
+	return "", fmt.Errorf("unknown config key: %q (want base_url or client_url)", key)
 }
 
 // readURLOverride reads a URL override file, returning "" if the file does not exist.

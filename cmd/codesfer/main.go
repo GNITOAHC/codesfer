@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gnitoahc/codesfer/internal/cli"
+	"github.com/gnitoahc/codesfer/pkg/api"
 	"github.com/gnitoahc/codesfer/pkg/version"
 	"strconv"
 
@@ -118,18 +119,21 @@ var configCmd = &cobra.Command{
 var configSetCmd = &cobra.Command{
 	Use:   "set [key] [value]",
 	Short: "Set a configuration value",
-	Long:  `Set a configuration value. This command allows you to set a configuration value.`,
+	Long: `Set a configuration value. Supported keys: base_url, client_url.
+Use the value "default" to remove the override and fall back to the built-in default.`,
+	Args: cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		cli.ConfigSet()
+		cli.ConfigSet(args[0], args[1])
 	},
 }
 
 var configGetCmd = &cobra.Command{
 	Use:   "get [key]",
 	Short: "Get a configuration value",
-	Long:  `Get a configuration value. This command allows you to get a configuration value.`,
+	Long:  `Get a configuration value. Supported keys: base_url, client_url.`,
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		cli.ConfigGet()
+		cli.ConfigGet(args[0])
 	},
 }
 
@@ -182,6 +186,14 @@ func main() {
 		&pullCmdFlags.File, "file", "f", "", "Extract only this path from the archive (e.g. dir/subdir/file.txt)",
 	)
 
+	// =============
+	// editCmd flags
+	// =============
+	editCmd.Flags().StringP("key", "k", "", "New key (id) for the code snippet")
+	editCmd.Flags().StringP("path", "p", "", "New path for the code snippet")
+	editCmd.Flags().StringP("desc", "d", "", "New description (empty string removes it)")
+	editCmd.Flags().StringP("access", "a", "", "New access scope: owner, authenticated or public")
+
 	// ================
 	// inspectCmd flags
 	// ================
@@ -200,7 +212,7 @@ func main() {
 	// ===========
 	authCmd.AddCommand(authLoginCmd, authLogoutCmd, authRegisterCmd)
 	configCmd.AddCommand(configSetCmd, configGetCmd)
-	rootCmd.AddCommand(pushCmd, listCmd, pullCmd, removeCmd, accountCmd, authCmd, configCmd, inspectCmd)
+	rootCmd.AddCommand(pushCmd, listCmd, pullCmd, removeCmd, accountCmd, authCmd, configCmd, inspectCmd, editCmd)
 
 	rootCmd.Execute()
 }
