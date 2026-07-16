@@ -17,30 +17,37 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	baseURLFile := filepath.Join(home, configDir, baseURLFile)
-
-	if err := makePaths(filepath.Dir(baseURLFile)); err != nil {
+	if err := makePaths(filepath.Join(home, configDir)); err != nil {
 		log.Fatal(err)
 	}
-	if _, err := os.Stat(baseURLFile); os.IsNotExist(err) {
-		// log.Printf("Fallback to %s", BaseURL)
-		return
+
+	if u := readURLOverride(filepath.Join(home, configDir, baseURLFile)); u != "" {
+		BaseURL = u
+	}
+	if u := readURLOverride(filepath.Join(home, configDir, clientURLFile)); u != "" {
+		ClientURL = u
+	}
+}
+
+// readURLOverride reads a URL override file, returning "" if the file does not exist.
+func readURLOverride(path string) string {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return ""
 	}
 
-	byteBaseURL, err := os.ReadFile(baseURLFile)
+	byteURL, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// remove all \r or \n
-	stringBaseURL := string(byteBaseURL)
-	stringBaseURL = strings.ReplaceAll(stringBaseURL, "\r", "")
-	stringBaseURL = strings.ReplaceAll(stringBaseURL, "\n", "")
-	stringBaseURL = strings.TrimSuffix(strings.TrimSpace(stringBaseURL), "/")
-	_, err = url.ParseRequestURI(stringBaseURL)
-	if err != nil {
+	stringURL := string(byteURL)
+	stringURL = strings.ReplaceAll(stringURL, "\r", "")
+	stringURL = strings.ReplaceAll(stringURL, "\n", "")
+	stringURL = strings.TrimSuffix(strings.TrimSpace(stringURL), "/")
+	if _, err := url.ParseRequestURI(stringURL); err != nil {
 		log.Fatal(err)
 	}
-	BaseURL = stringBaseURL
+	return stringURL
 }
 
 // uaTransport sets the CLI User-Agent on every outgoing request,
