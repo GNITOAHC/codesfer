@@ -36,9 +36,7 @@ func Inspect(flags InspectFlags, key string) {
 	fmt.Printf("Owner: %s\n", info.Owner)
 	fmt.Printf("Path: %s\n", info.Path)
 	fmt.Printf("Created: %s\n", time.Unix(info.CreatedAt, 0).Format("2006-01-02 15:04:05"))
-	if info.Protected {
-		fmt.Printf("Protected: yes\n")
-	}
+	fmt.Printf("Access: %s\n", info.AccessScope)
 
 	if info.Metadata != nil {
 		if desc, ok := info.Metadata["desc"]; ok && desc != "" {
