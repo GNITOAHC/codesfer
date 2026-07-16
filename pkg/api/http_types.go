@@ -45,6 +45,15 @@ type RemoveResponse struct {
 	Results map[string]string `json:"results"`
 }
 
+// Endpoint: /storage/settings
+// Nil fields are left unchanged; desc set to "" removes the description.
+type UpdateSettingsRequest struct {
+	Key         *string `json:"key,omitempty"`      // new id
+	Filename    *string `json:"filename,omitempty"` // new filename (the `path` shown by list/inspect)
+	Desc        *string `json:"desc,omitempty"`     // metadata description
+	AccessScope *string `json:"access_scope,omitempty"`
+}
+
 // Endpoint: /storage/info
 type InspectResponse struct {
 	Key         string         `json:"key"`

@@ -338,6 +338,42 @@ func Remove(sessionID string, keys []string) (*api.RemoveResponse, error) {
 	return &result, nil
 }
 
+// UpdateSettings changes an object's settings (new key, filename, description,
+// access scope) via PATCH /storage/settings. Nil fields are left unchanged.
+func UpdateSettings(sessionID, key string, settings api.UpdateSettingsRequest) (*api.InspectResponse, error) {
+	body, err := json.Marshal(settings)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", BaseURL+"/storage/settings?key="+key, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+sessionID)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := GetHTTPClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		errmsg, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, errors.New(string(errmsg))
+	}
+
+	var result api.InspectResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // Inspect retrieves metadata about a code snippet without downloading it
 func Inspect(sessionID, key, password string) (*api.InspectResponse, error) {
 	url := BaseURL + "/storage/info?key=" + key

@@ -91,6 +91,13 @@ func StorageHandler(driver, source string, objStorage object.ObjectStorage) http
 		http.Error(w, "unauthorized, only authorized users can remove", http.StatusUnauthorized)
 	})
 	storageHandler.HandleFunc("GET /info", info)
+	storageHandler.HandleFunc("PATCH /settings", func(w http.ResponseWriter, r *http.Request) {
+		if username := r.Header.Get("X-Username"); username != "" {
+			updateSettings(w, r, username)
+			return
+		}
+		http.Error(w, "unauthorized, only authorized users can change settings", http.StatusUnauthorized)
+	})
 	return storageHandler
 }
 
@@ -642,6 +649,107 @@ func uploadChunk(w http.ResponseWriter, r *http.Request, username string) {
 	json.NewEncoder(w).Encode(api.UploadResponse{
 		Uid:  uid,
 		Path: path,
+	})
+}
+
+// updateSettings changes the mutable settings of an object (id, filename,
+// metadata description, access scope). Owner only; nil request fields are
+// left unchanged.
+func updateSettings(w http.ResponseWriter, r *http.Request, username string) {
+	key := r.URL.Query().Get("key")
+	log.Printf("[/storage/settings] user %s is updating object, key: %s", username, key)
+
+	obj, err := findObject(key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// Report not-found for other users' objects too, so ownership isn't leaked.
+	if obj == nil || obj.Username != username {
+		http.Error(w, "object not found", http.StatusNotFound)
+		return
+	}
+
+	var req api.UpdateSettingsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	oldID := obj.ID
+	if req.Key != nil && *req.Key != "" && *req.Key != obj.ID {
+		existing, err := get(*req.Key)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if existing != nil {
+			http.Error(w, "key already in use: "+*req.Key, http.StatusConflict)
+			return
+		}
+		obj.ID = *req.Key
+	}
+	if req.Filename != nil && *req.Filename != "" && *req.Filename != obj.Filename {
+		have, err := haveFile(username, *req.Filename)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if have {
+			http.Error(w, "filename already in use: "+*req.Filename, http.StatusConflict)
+			return
+		}
+		obj.Filename = *req.Filename
+	}
+	if req.AccessScope != nil {
+		scope, err := normalizeScope(*req.AccessScope)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		obj.AccessScope = scope
+	}
+	if req.Desc != nil {
+		metadata := map[string]any{}
+		if obj.Metadata != "" {
+			if err := json.Unmarshal([]byte(obj.Metadata), &metadata); err != nil {
+				log.Printf("  Warning: failed to parse metadata JSON: %v", err)
+			}
+		}
+		if *req.Desc == "" {
+			delete(metadata, "desc")
+		} else {
+			metadata["desc"] = *req.Desc
+		}
+		b, err := json.Marshal(metadata)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		obj.Metadata = string(b)
+	}
+
+	if err := updateObject(oldID, obj); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("  updated: id: %s -> %s, filename: %s, scope: %s", oldID, obj.ID, obj.Filename, obj.AccessScope)
+
+	var metadata map[string]any
+	if obj.Metadata != "" {
+		if err := json.Unmarshal([]byte(obj.Metadata), &metadata); err != nil {
+			log.Printf("  Warning: failed to parse metadata JSON: %v", err)
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(api.InspectResponse{
+		Key:         obj.ID,
+		Owner:       obj.Username,
+		Path:        obj.Filename,
+		CreatedAt:   obj.CreatedAt,
+		Protected:   obj.Password != "",
+		AccessScope: obj.AccessScope,
+		Metadata:    metadata,
 	})
 }
 

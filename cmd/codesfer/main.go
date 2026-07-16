@@ -137,6 +137,29 @@ var configGetCmd = &cobra.Command{
 	},
 }
 
+var editCmd = &cobra.Command{
+	Use:   "edit [code]",
+	Short: "Change settings of a code snippet",
+	Long:  `Change settings of a code snippet you own: key, path, description or access scope. Flags that are not passed stay unchanged.`,
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		// Only flags the user explicitly passed are sent to the server.
+		changed := func(name string) *string {
+			if !cmd.Flags().Changed(name) {
+				return nil
+			}
+			v, _ := cmd.Flags().GetString(name)
+			return &v
+		}
+		cli.Edit(api.UpdateSettingsRequest{
+			Key:         changed("key"),
+			Filename:    changed("path"),
+			Desc:        changed("desc"),
+			AccessScope: changed("access"),
+		}, args[0])
+	},
+}
+
 var inspectCmdFlags cli.InspectFlags
 var inspectCmd = &cobra.Command{
 	Use:   "inspect [key]",

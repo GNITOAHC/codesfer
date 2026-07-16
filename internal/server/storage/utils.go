@@ -61,6 +61,16 @@ func generateID(n int) (string, error) {
 	return string(b), nil
 }
 
+// findObject resolves a client-facing key (<uid> || <username>/<uid> || <username>/<path>)
+// to an object, or nil when nothing matches.
+func findObject(key string) (*Object, error) {
+	uid, username, path := parseKey(key)
+	if obj, err := get(uid); obj != nil || err != nil {
+		return obj, err
+	}
+	return getByUsernamePath(username, path)
+}
+
 // parseKey extracts the key from a path
 // key: <uid> || <username>/<uid> || <username>/<path>
 func parseKey(key string) (string, string, string) {

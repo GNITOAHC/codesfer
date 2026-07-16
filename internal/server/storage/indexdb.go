@@ -179,6 +179,25 @@ func get(id string) (*Object, error) {
 	return obj, nil
 }
 
+// updateObject rewrites the mutable settings (id, filename, metadata,
+// access_scope) of the object currently stored under oldID. The username
+// guard prevents updating someone else's object.
+func updateObject(oldID string, obj *Object) error {
+	query := fmt.Sprintf("UPDATE %s SET id = ?, filename = ?, metadata = ?, access_scope = ? WHERE id = ? AND username = ?", tableName)
+	res, err := db.Exec(query, obj.ID, obj.Filename, obj.Metadata, obj.AccessScope, oldID, obj.Username)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return errors.New("object not found")
+	}
+	return nil
+}
+
 // removeByID removes the object with given id and returns the path in object storage
 // username should be provided to prevent unauthorized removal
 func removeByID(username, id string) (string, error) {
