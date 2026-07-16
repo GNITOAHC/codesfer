@@ -6,7 +6,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+
+	"github.com/gnitoahc/codesfer/pkg/version"
 )
 
 func init() {
@@ -40,12 +43,23 @@ func init() {
 	BaseURL = stringBaseURL
 }
 
+// uaTransport sets the CLI User-Agent on every outgoing request,
+// replacing Go's default "Go-http-client/2.0".
+type uaTransport struct {
+	base http.RoundTripper
+}
+
+func (t *uaTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("User-Agent", "codesfer-cli/"+version.Version+" ("+runtime.GOOS+")")
+	return t.base.RoundTrip(req)
+}
+
 // GetHTTPClient returns an HTTP client that respects proxy environment variables
 // (HTTP_PROXY, HTTPS_PROXY, NO_PROXY)
 func GetHTTPClient() *http.Client {
 	return &http.Client{
-		Transport: &http.Transport{
+		Transport: &uaTransport{base: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
-		},
+		}},
 	}
 }
