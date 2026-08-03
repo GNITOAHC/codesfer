@@ -60,7 +60,7 @@ type InspectResponse struct {
 	Owner       string         `json:"owner"`
 	Path        string         `json:"path"`
 	CreatedAt   int64          `json:"created_at"`
-	Protected   bool           `json:"protected"`
+	Protected   bool           `json:"protected"`    // true if password-protected
 	AccessScope string         `json:"access_scope"` // owner | authenticated | public
 	Metadata    map[string]any `json:"metadata,omitempty"`
 }
