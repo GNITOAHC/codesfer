@@ -49,7 +49,7 @@ type RemoveResponse struct {
 // Nil fields are left unchanged; desc set to "" removes the description.
 type UpdateSettingsRequest struct {
 	Key         *string `json:"key,omitempty"`      // new id
-	Filename    *string `json:"filename,omitempty"` // new filename (the `path` shown by list/inspect)
+	IdxPath     *string `json:"idx_path,omitempty"` // new idxPath (the `path` shown by list/inspect)
 	Desc        *string `json:"desc,omitempty"`     // metadata description
 	AccessScope *string `json:"access_scope,omitempty"`
 }

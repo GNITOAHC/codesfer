@@ -79,7 +79,7 @@ func DownloadRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	meta, body, err := objectStorage.Get(r.Context(), obj.Path, nil)
+	meta, body, err := objectStorage.Get(r.Context(), obj.ObjPath, nil)
 	if err != nil {
 		log.Printf("  object storage read error: %v", err)
 		writeJSONError(w, http.StatusInternalServerError, "internal error", "")
@@ -87,7 +87,7 @@ func DownloadRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	defer body.Close()
 
-	filename := sanitizeFilename(obj.Path)
+	filename := sanitizeFilename(obj.ObjPath)
 	if !strings.HasSuffix(filename, ".zip") {
 		filename += ".zip"
 	}
@@ -111,16 +111,16 @@ func servePreview(w http.ResponseWriter, r *http.Request, obj *Object) bool {
 		return false
 	}
 	log.Printf("  Preview bot detected: %s", r.Header.Get("User-Agent"))
-	meta, err := objectStorage.Stat(r.Context(), obj.Path)
+	meta, err := objectStorage.Stat(r.Context(), obj.ObjPath)
 	if err != nil {
 		// If we can't get stats, we can still show basic preview or just error out.
 		// Choosing to log and show basic info if possible, or error.
 		log.Printf("Failed to stat object for preview: %v", err)
 	}
 
-	filename := sanitizeFilename(obj.Path)
-	if obj.Filename != "" {
-		filename = obj.Filename
+	filename := sanitizeFilename(obj.ObjPath)
+	if obj.IdxPath != "" {
+		filename = obj.IdxPath
 	}
 
 	description := "Ready to download"

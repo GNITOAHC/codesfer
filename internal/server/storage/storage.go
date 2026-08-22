@@ -118,7 +118,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 		response = append(response, api.SingleObject{
 			Key:         obj.ID,
 			Password:    obj.Password,
-			Path:        obj.Path,
+			Path:        obj.IdxPath,
 			CreatedAt:   obj.CreatedAt,
 			AccessScope: obj.AccessScope,
 		})
@@ -179,7 +179,7 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 		for {
 			conflict := false
 			for _, f := range files {
-				if f.Filename == fmt.Sprintf("%s_%d", path, idx) {
+				if f.IdxPath == fmt.Sprintf("%s_%d", path, idx) {
 					conflict = true
 					log.Printf("[/storage/upload] path conflict, trying new filename: %s", fmt.Sprintf("%s_%d", path, idx))
 				}
@@ -240,7 +240,7 @@ func download(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if obj != nil {
-			log.Printf("  Object found by username/path: %s/%s; uid: %s", obj.Username, obj.Path, obj.ID)
+			log.Printf("  Object found by username/path: %s/%s; uid: %s", obj.Username, obj.ObjPath, obj.ID)
 		}
 		if obj == nil {
 			http.Error(w, "object not found", http.StatusNotFound)
@@ -254,13 +254,13 @@ func download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("  resp: username: %s, filename: %s, path: %s, uid: %s", obj.Username, obj.Filename, obj.Path, obj.ID)
+	log.Printf("  resp: username: %s, filename: %s, path: %s, uid: %s", obj.Username, obj.IdxPath, obj.ObjPath, obj.ID)
 
 	// ============================
 	// Download from Object Storage
 	// ============================
 
-	meta, body, err := objectStorage.Get(r.Context(), obj.Path, nil)
+	meta, body, err := objectStorage.Get(r.Context(), obj.ObjPath, nil)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, object.ErrNotFound) {
@@ -271,7 +271,7 @@ func download(w http.ResponseWriter, r *http.Request) {
 	}
 	defer body.Close()
 
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", sanitizeFilename(obj.Path)))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", sanitizeFilename(obj.ObjPath)))
 	if meta.ContentType != "" {
 		w.Header().Set("Content-Type", meta.ContentType)
 	} else {
@@ -426,7 +426,7 @@ func uploadChunk(w http.ResponseWriter, r *http.Request, username string) {
 				for {
 					conflict := false
 					for _, f := range files {
-						if f.Filename == fmt.Sprintf("%s_%d", path, idx) {
+						if f.IdxPath == fmt.Sprintf("%s_%d", path, idx) {
 							conflict = true
 						}
 					}
@@ -625,7 +625,7 @@ func uploadChunk(w http.ResponseWriter, r *http.Request, username string) {
 		for {
 			conflict := false
 			for _, f := range files {
-				if f.Filename == fmt.Sprintf("%s_%d", path, idx) {
+				if f.IdxPath == fmt.Sprintf("%s_%d", path, idx) {
 					conflict = true
 					log.Printf("[/storage/upload/chunk] path conflict, trying: %s", fmt.Sprintf("%s_%d", path, idx))
 				}
@@ -689,17 +689,17 @@ func updateSettings(w http.ResponseWriter, r *http.Request, username string) {
 		}
 		obj.ID = *req.Key
 	}
-	if req.Filename != nil && *req.Filename != "" && *req.Filename != obj.Filename {
-		have, err := haveFile(username, *req.Filename)
+	if req.IdxPath != nil && *req.IdxPath != "" && *req.IdxPath != obj.IdxPath {
+		have, err := haveFile(username, *req.IdxPath)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if have {
-			http.Error(w, "filename already in use: "+*req.Filename, http.StatusConflict)
+			http.Error(w, "filename already in use: "+*req.IdxPath, http.StatusConflict)
 			return
 		}
-		obj.Filename = *req.Filename
+		obj.IdxPath = *req.IdxPath
 	}
 	if req.AccessScope != nil {
 		scope, err := normalizeScope(*req.AccessScope)
@@ -733,7 +733,7 @@ func updateSettings(w http.ResponseWriter, r *http.Request, username string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Printf("  updated: id: %s -> %s, filename: %s, scope: %s", oldID, obj.ID, obj.Filename, obj.AccessScope)
+	log.Printf("  updated: id: %s -> %s, filename: %s, scope: %s", oldID, obj.ID, obj.IdxPath, obj.AccessScope)
 
 	var metadata map[string]any
 	if obj.Metadata != "" {
@@ -745,7 +745,7 @@ func updateSettings(w http.ResponseWriter, r *http.Request, username string) {
 	json.NewEncoder(w).Encode(api.InspectResponse{
 		Key:         obj.ID,
 		Owner:       obj.Username,
-		Path:        obj.Filename,
+		Path:        obj.IdxPath,
 		CreatedAt:   obj.CreatedAt,
 		Protected:   obj.Password != "",
 		AccessScope: obj.AccessScope,
@@ -779,7 +779,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if obj != nil {
-			log.Printf("  Object found by username/path: %s/%s; uid: %s", obj.Username, obj.Path, obj.ID)
+			log.Printf("  Object found by username/path: %s/%s; uid: %s", obj.Username, obj.ObjPath, obj.ID)
 		}
 		if obj == nil {
 			http.Error(w, "object not found", http.StatusNotFound)
@@ -805,7 +805,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(api.InspectResponse{
 		Key:         obj.ID,
 		Owner:       obj.Username,
-		Path:        obj.Filename,
+		Path:        obj.IdxPath,
 		CreatedAt:   obj.CreatedAt,
 		Protected:   obj.Password != "",
 		AccessScope: obj.AccessScope,

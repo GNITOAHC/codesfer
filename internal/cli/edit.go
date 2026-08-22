@@ -11,7 +11,7 @@ import (
 // Edit changes the settings of an uploaded code snippet.
 // Nil fields in settings are left unchanged.
 func Edit(settings api.UpdateSettingsRequest, key string) {
-	if settings.Key == nil && settings.Filename == nil && settings.Desc == nil && settings.AccessScope == nil {
+	if settings.Key == nil && settings.IdxPath == nil && settings.Desc == nil && settings.AccessScope == nil {
 		log.Fatal("nothing to change: pass at least one of --key, --path, --desc or --access")
 	}
 
