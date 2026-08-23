@@ -3,11 +3,10 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gnitoahc/codesfer/pkg/api"
-	"github.com/gnitoahc/codesfer/pkg/object"
 	"io"
 	"log"
 	"net/http"
@@ -16,6 +15,9 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+
+	"github.com/gnitoahc/codesfer/pkg/api"
+	"github.com/gnitoahc/codesfer/pkg/object"
 )
 
 var objectStorage object.ObjectStorage
@@ -292,12 +294,16 @@ func remove(w http.ResponseWriter, r *http.Request, username string, keys []stri
 	for _, key := range keys {
 		// First, remove from indexdb
 		path, err := removeByID(username, key)
-		if err != nil {
-			resp.Results[key] = "error removing from indexdb: " + err.Error()
-			log.Printf("  key: %s, path: %s; error removing from indexdb: %v", key, path, err)
+		if errors.Is(err, sql.ErrNoRows) {
+			resp.Results[key] = fmt.Sprintf("error removing key %s, not found for user %s", key, username)
+			log.Printf("  username: %s, key: %s; error removing from indexdb: %v", username, key, err)
+			continue
+		} else if err != nil {
+			resp.Results[key] = "error removing key: " + err.Error()
+			log.Printf("  username: %s, key: %s: %s; error removing from indexdb: %v", username, key, err)
 			continue
 		} else {
-			log.Printf("  key: %s, path: %s; removed from indexdb", key, path)
+			log.Printf("  username: %s, key: %s, path: %s; removed from indexdb", username, key, path)
 		}
 
 		// Then, remove from object storage
