@@ -10,6 +10,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/gnitoahc/codesfer/internal/constants"
 )
 
 // checkAccess decides whether username (empty = anonymous) may read obj with
@@ -96,7 +98,6 @@ func objPath(username, path string) string {
 
 // opupload will upload a file to object storage cloud and insert a record to database
 func opupload(ctx context.Context, file io.Reader, size int64, key, username, password, path string, overwrite bool, metadata, scope string) (string, error) {
-	const multipartThreshold = 100 << 20 // 100 MB
 	var err error
 
 	if key == "" {
@@ -124,7 +125,7 @@ func opupload(ctx context.Context, file io.Reader, size int64, key, username, pa
 	// Note: the multipart branch is unreachable in practice — the client caps
 	// non-chunked uploads at 90 MB, which is below multipartThreshold (100 MB).
 	// Large files go through the chunked upload path (StreamingWriter) instead.
-	if size > multipartThreshold {
+	if constants.UploadChunkSize < size {
 		log.Print("Stream via multipart")
 		if _, err := objectStorage.MultipartPut(ctx, objectPath, file, 8<<20, nil); err != nil {
 			return "", errors.New("[op upload] [multipart] multipart upload failed: " + err.Error())

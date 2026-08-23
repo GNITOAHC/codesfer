@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gnitoahc/codesfer/pkg/api"
 	"io"
 	"log"
 	"mime/multipart"
@@ -14,6 +13,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/gnitoahc/codesfer/internal/constants"
+	"github.com/gnitoahc/codesfer/pkg/api"
 )
 
 type PushForm struct {
@@ -118,10 +120,6 @@ func Push(form PushForm, zipFile string) (*api.UploadResponse, error) {
 	return &result, nil
 }
 
-// chunkSize is the maximum bytes per chunk. Kept under Cloudflare's 100 MB
-// request-body limit with a comfortable margin.
-const chunkSize = 90 << 20 // 90 MB
-
 // generateUploadID returns a random hex string used to correlate chunks on the server.
 func generateUploadID() string {
 	b := make([]byte, 8)
@@ -144,7 +142,7 @@ func PushChunked(form PushForm, zipFile string) (*api.UploadResponse, error) {
 		return nil, err
 	}
 	totalSize := info.Size()
-	totalChunks := int((totalSize + chunkSize - 1) / chunkSize)
+	totalChunks := int((totalSize + constants.UploadChunkSize - 1) / constants.UploadChunkSize)
 	uploadID := generateUploadID()
 
 	log.Printf("Chunked upload: %d chunk(s) of up to 90 MB each (upload id: %s)", totalChunks, uploadID)
@@ -152,8 +150,8 @@ func PushChunked(form PushForm, zipFile string) (*api.UploadResponse, error) {
 	for i := range totalChunks {
 		log.Printf("Uploading chunk %d/%d ...", i+1, totalChunks)
 
-		offset := int64(i) * chunkSize
-		size := int64(chunkSize)
+		offset := int64(i) * constants.UploadChunkSize
+		size := int64(constants.UploadChunkSize)
 		if offset+size > totalSize {
 			size = totalSize - offset
 		}

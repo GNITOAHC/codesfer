@@ -2,12 +2,14 @@ package cli
 
 import (
 	"fmt"
-	"github.com/gnitoahc/codesfer/internal/client"
-	"github.com/gnitoahc/codesfer/pkg/api"
 	"log"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/gnitoahc/codesfer/internal/client"
+	"github.com/gnitoahc/codesfer/internal/constants"
+	"github.com/gnitoahc/codesfer/pkg/api"
 )
 
 type PushFlags struct {
@@ -121,10 +123,8 @@ func Push(flags PushFlags, args []string) {
 		Metadata: metadata,
 	}
 
-	const cloudflareLimit = 90 << 20 // 90 MB — stay under Cloudflare's 100 MB body limit
-
 	var resp *api.UploadResponse
-	if zipInfo.Size() > cloudflareLimit {
+	if constants.UploadChunkSize < zipInfo.Size() {
 		log.Printf("File exceeds 90 MB, switching to chunked upload")
 		resp, err = client.PushChunked(form, f.Name())
 	} else {
