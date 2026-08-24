@@ -1,12 +1,17 @@
 package cli
 
 import (
-	"github.com/gnitoahc/codesfer/internal/client"
 	"log"
+	"os"
+	"sync"
+	"sync/atomic"
+
+	"github.com/gnitoahc/codesfer/internal/client"
 )
 
 func Remove(codes []string) {
 	const (
+		colorRed    = "\033[31m"
 		colorYellow = "\033[33m"
 		colorReset  = "\033[0m"
 	)
@@ -18,12 +23,27 @@ func Remove(codes []string) {
 
 	log.Printf("Removing %d code(s)...", len(codes))
 
-	resp, err := client.Remove(sessionID, codes)
-	if err != nil {
-		log.Fatal(err)
+	// one goroutine per key, no worker pool — remove takes a handful of
+	// keys from argv. Add a semaphore if that ever stops being true.
+	var (
+		wg     sync.WaitGroup
+		failed atomic.Bool
+	)
+	for _, code := range codes {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := client.Remove(sessionID, code); err != nil {
+				failed.Store(true)
+				log.Printf("[%s] %s%v%s", code, colorRed, err, colorReset)
+				return
+			}
+			log.Printf("[%s] %sremoved%s", code, colorYellow, colorReset)
+		}()
 	}
+	wg.Wait()
 
-	for code, status := range resp.Results {
-		log.Printf("[%s] %s%s%s", code, colorYellow, status, colorReset)
+	if failed.Load() {
+		os.Exit(1)
 	}
 }

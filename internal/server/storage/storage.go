@@ -86,8 +86,7 @@ func StorageHandler(driver, source string, objStorage object.ObjectStorage) http
 	})
 	storageHandler.HandleFunc("DELETE /remove", func(w http.ResponseWriter, r *http.Request) {
 		if username := r.Header.Get("X-Username"); username != "" {
-			log.Printf("[/storage/remove] user %s is trying to remove objects, including key %s", username, r.URL.Query()["key"])
-			remove(w, r, username, r.URL.Query()["key"])
+			remove(w, r, username, r.URL.Query().Get("key"))
 			return
 		}
 		http.Error(w, "unauthorized, only authorized users can remove", http.StatusUnauthorized)
@@ -288,39 +287,37 @@ func download(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func remove(w http.ResponseWriter, r *http.Request, username string, keys []string) {
-	log.Printf("[/storage/remove] user %s is trying to remove objects, including key %s", username, keys)
-	resp := api.RemoveResponse{Results: make(map[string]string)}
-	for _, key := range keys {
-		// First, remove from indexdb
-		path, err := removeByID(username, key)
-		if errors.Is(err, sql.ErrNoRows) {
-			resp.Results[key] = fmt.Sprintf("error removing key %s, not found for user %s", key, username)
-			log.Printf("  username: %s, key: %s; error removing from indexdb: %v", username, key, err)
-			continue
-		} else if err != nil {
-			resp.Results[key] = "error removing key: " + err.Error()
-			log.Printf("  username: %s, key: %s: %s; error removing from indexdb: %v", username, key, err)
-			continue
-		} else {
-			log.Printf("  username: %s, key: %s, path: %s; removed from indexdb", username, key, path)
-		}
-
-		// Then, remove from object storage
-		err = opremove(r.Context(), path)
-		if err != nil {
-			resp.Results[key] = "error removing from object storage: " + err.Error()
-			log.Printf("  key: %s, path: %s; error removing from object storage: %v", key, path, err)
-			continue
-		} else {
-			log.Printf("  key: %s, path: %s; removed from object storage", key, path)
-		}
-
-		resp.Results[key] = "removed"
+// remove deletes a single object. Callers wanting to remove several objects
+// send one request per key (the CLI does so in parallel).
+func remove(w http.ResponseWriter, r *http.Request, username, key string) {
+	log.Printf("[/storage/remove] user %s is trying to remove object, key: %s", username, key)
+	if key == "" {
+		writeJSONError(w, http.StatusBadRequest, "missing key", "")
+		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	// First, remove from indexdb
+	path, err := removeByID(username, key)
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Printf("  username: %s, key: %s; not found in indexdb", username, key)
+		writeJSONError(w, http.StatusNotFound, fmt.Sprintf("key %s not found for user %s", key, username), "")
+		return
+	} else if err != nil {
+		log.Printf("  username: %s, key: %s; error removing from indexdb: %v", username, key, err)
+		writeJSONError(w, http.StatusInternalServerError, "error removing key: "+err.Error(), "")
+		return
+	}
+	log.Printf("  username: %s, key: %s, path: %s; removed from indexdb", username, key, path)
+
+	// Then, remove from object storage
+	if err := opremove(r.Context(), path); err != nil {
+		log.Printf("  key: %s, path: %s; error removing from object storage: %v", key, path, err)
+		writeJSONError(w, http.StatusInternalServerError, "error removing from object storage: "+err.Error(), "")
+		return
+	}
+	log.Printf("  key: %s, path: %s; removed from object storage", key, path)
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // uploadChunk handles one chunk of a multi-part chunked upload.

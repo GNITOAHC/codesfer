@@ -41,9 +41,7 @@ type UploadResponse struct {
 }
 
 // Endpoint: /storage/remove
-type RemoveResponse struct {
-	Results map[string]string `json:"results"`
-}
+// Removes one key per request; returns 204 No Content on success.
 
 // Endpoint: /storage/settings
 // Nil fields are left unchanged; desc set to "" removes the description.

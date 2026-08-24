@@ -10,6 +10,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -300,40 +301,40 @@ func Pull(sessionID, key, password string) (string, error) {
 	return file.Name(), nil
 }
 
-// Remove files by their keys
-func Remove(sessionID string, keys []string) (*api.RemoveResponse, error) {
-	queryParam := ""
-	for _, key := range keys {
-		queryParam += "key=" + key + "&"
-	}
-
-	url := BaseURL + "/storage/remove?" + queryParam
-	req, err := http.NewRequest("DELETE", url, nil)
+// Remove a file by its key. Safe for concurrent use.
+func Remove(sessionID, key string) error {
+	req, err := http.NewRequest("DELETE", BaseURL+"/storage/remove?key="+url.QueryEscape(key), nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+sessionID)
 
 	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		// Read plain text from response body
-		errmsg, err := io.ReadAll(resp.Body)
-		if err != nil {
-			panic(err)
-		}
-		return nil, errors.New(string(errmsg))
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("%s: %s", resp.Status, serverError(resp.Body))
 	}
+	return nil
+}
 
-	var result api.RemoveResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+// serverError reads an error response body, unwrapping the {"error": "..."}
+// shape the server sends and falling back to the raw text.
+func serverError(body io.Reader) string {
+	raw, err := io.ReadAll(body)
+	if err != nil {
+		return err.Error()
 	}
-	return &result, nil
+	var payload struct {
+		Error string `json:"error"`
+	}
+	if json.Unmarshal(raw, &payload) == nil && payload.Error != "" {
+		return payload.Error
+	}
+	return string(raw)
 }
 
 // UpdateSettings changes an object's settings (new key, filename, description,
