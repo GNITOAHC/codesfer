@@ -3,11 +3,10 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gnitoahc/codesfer/pkg/api"
-	"github.com/gnitoahc/codesfer/pkg/object"
 	"io"
 	"log"
 	"net/http"
@@ -16,6 +15,9 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+
+	"github.com/gnitoahc/codesfer/pkg/api"
+	"github.com/gnitoahc/codesfer/pkg/object"
 )
 
 var objectStorage object.ObjectStorage
@@ -84,8 +86,7 @@ func StorageHandler(driver, source string, objStorage object.ObjectStorage) http
 	})
 	storageHandler.HandleFunc("DELETE /remove", func(w http.ResponseWriter, r *http.Request) {
 		if username := r.Header.Get("X-Username"); username != "" {
-			log.Printf("[/storage/remove] user %s is trying to remove objects, including key %s", username, r.URL.Query()["key"])
-			remove(w, r, username, r.URL.Query()["key"])
+			remove(w, r, username, r.URL.Query().Get("key"))
 			return
 		}
 		http.Error(w, "unauthorized, only authorized users can remove", http.StatusUnauthorized)
@@ -118,7 +119,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 		response = append(response, api.SingleObject{
 			Key:         obj.ID,
 			Password:    obj.Password,
-			Path:        obj.Path,
+			Path:        obj.IdxPath,
 			CreatedAt:   obj.CreatedAt,
 			AccessScope: obj.AccessScope,
 		})
@@ -179,7 +180,7 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 		for {
 			conflict := false
 			for _, f := range files {
-				if f.Filename == fmt.Sprintf("%s_%d", path, idx) {
+				if f.IdxPath == fmt.Sprintf("%s_%d", path, idx) {
 					conflict = true
 					log.Printf("[/storage/upload] path conflict, trying new filename: %s", fmt.Sprintf("%s_%d", path, idx))
 				}
@@ -240,7 +241,7 @@ func download(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if obj != nil {
-			log.Printf("  Object found by username/path: %s/%s; uid: %s", obj.Username, obj.Path, obj.ID)
+			log.Printf("  Object found by username/path: %s/%s; uid: %s", obj.Username, obj.ObjPath, obj.ID)
 		}
 		if obj == nil {
 			http.Error(w, "object not found", http.StatusNotFound)
@@ -254,13 +255,13 @@ func download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("  resp: username: %s, filename: %s, path: %s, uid: %s", obj.Username, obj.Filename, obj.Path, obj.ID)
+	log.Printf("  resp: username: %s, filename: %s, path: %s, uid: %s", obj.Username, obj.IdxPath, obj.ObjPath, obj.ID)
 
 	// ============================
 	// Download from Object Storage
 	// ============================
 
-	meta, body, err := objectStorage.Get(r.Context(), obj.Path, nil)
+	meta, body, err := objectStorage.Get(r.Context(), obj.ObjPath, nil)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, object.ErrNotFound) {
@@ -271,7 +272,7 @@ func download(w http.ResponseWriter, r *http.Request) {
 	}
 	defer body.Close()
 
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", sanitizeFilename(obj.Path)))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", sanitizeFilename(obj.ObjPath)))
 	if meta.ContentType != "" {
 		w.Header().Set("Content-Type", meta.ContentType)
 	} else {
@@ -286,35 +287,37 @@ func download(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func remove(w http.ResponseWriter, r *http.Request, username string, keys []string) {
-	log.Printf("[/storage/remove] user %s is trying to remove objects, including key %s", username, keys)
-	resp := api.RemoveResponse{Results: make(map[string]string)}
-	for _, key := range keys {
-		// First, remove from indexdb
-		path, err := removeByID(username, key)
-		if err != nil {
-			resp.Results[key] = "error removing from indexdb: " + err.Error()
-			log.Printf("  key: %s, path: %s; error removing from indexdb: %v", key, path, err)
-			continue
-		} else {
-			log.Printf("  key: %s, path: %s; removed from indexdb", key, path)
-		}
-
-		// Then, remove from object storage
-		err = opremove(r.Context(), path)
-		if err != nil {
-			resp.Results[key] = "error removing from object storage: " + err.Error()
-			log.Printf("  key: %s, path: %s; error removing from object storage: %v", key, path, err)
-			continue
-		} else {
-			log.Printf("  key: %s, path: %s; removed from object storage", key, path)
-		}
-
-		resp.Results[key] = "removed"
+// remove deletes a single object. Callers wanting to remove several objects
+// send one request per key (the CLI does so in parallel).
+func remove(w http.ResponseWriter, r *http.Request, username, key string) {
+	log.Printf("[/storage/remove] user %s is trying to remove object, key: %s", username, key)
+	if key == "" {
+		writeJSONError(w, http.StatusBadRequest, "missing key", "")
+		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	// First, remove from indexdb
+	path, err := removeByID(username, key)
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Printf("  username: %s, key: %s; not found in indexdb", username, key)
+		writeJSONError(w, http.StatusNotFound, fmt.Sprintf("key %s not found for user %s", key, username), "")
+		return
+	} else if err != nil {
+		log.Printf("  username: %s, key: %s; error removing from indexdb: %v", username, key, err)
+		writeJSONError(w, http.StatusInternalServerError, "error removing key: "+err.Error(), "")
+		return
+	}
+	log.Printf("  username: %s, key: %s, path: %s; removed from indexdb", username, key, path)
+
+	// Then, remove from object storage
+	if err := opremove(r.Context(), path); err != nil {
+		log.Printf("  key: %s, path: %s; error removing from object storage: %v", key, path, err)
+		writeJSONError(w, http.StatusInternalServerError, "error removing from object storage: "+err.Error(), "")
+		return
+	}
+	log.Printf("  key: %s, path: %s; removed from object storage", key, path)
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // uploadChunk handles one chunk of a multi-part chunked upload.
@@ -426,7 +429,7 @@ func uploadChunk(w http.ResponseWriter, r *http.Request, username string) {
 				for {
 					conflict := false
 					for _, f := range files {
-						if f.Filename == fmt.Sprintf("%s_%d", path, idx) {
+						if f.IdxPath == fmt.Sprintf("%s_%d", path, idx) {
 							conflict = true
 						}
 					}
@@ -625,7 +628,7 @@ func uploadChunk(w http.ResponseWriter, r *http.Request, username string) {
 		for {
 			conflict := false
 			for _, f := range files {
-				if f.Filename == fmt.Sprintf("%s_%d", path, idx) {
+				if f.IdxPath == fmt.Sprintf("%s_%d", path, idx) {
 					conflict = true
 					log.Printf("[/storage/upload/chunk] path conflict, trying: %s", fmt.Sprintf("%s_%d", path, idx))
 				}
@@ -689,17 +692,17 @@ func updateSettings(w http.ResponseWriter, r *http.Request, username string) {
 		}
 		obj.ID = *req.Key
 	}
-	if req.Filename != nil && *req.Filename != "" && *req.Filename != obj.Filename {
-		have, err := haveFile(username, *req.Filename)
+	if req.IdxPath != nil && *req.IdxPath != "" && *req.IdxPath != obj.IdxPath {
+		have, err := haveFile(username, *req.IdxPath)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if have {
-			http.Error(w, "filename already in use: "+*req.Filename, http.StatusConflict)
+			http.Error(w, "filename already in use: "+*req.IdxPath, http.StatusConflict)
 			return
 		}
-		obj.Filename = *req.Filename
+		obj.IdxPath = *req.IdxPath
 	}
 	if req.AccessScope != nil {
 		scope, err := normalizeScope(*req.AccessScope)
@@ -733,7 +736,7 @@ func updateSettings(w http.ResponseWriter, r *http.Request, username string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Printf("  updated: id: %s -> %s, filename: %s, scope: %s", oldID, obj.ID, obj.Filename, obj.AccessScope)
+	log.Printf("  updated: id: %s -> %s, filename: %s, scope: %s", oldID, obj.ID, obj.IdxPath, obj.AccessScope)
 
 	var metadata map[string]any
 	if obj.Metadata != "" {
@@ -745,7 +748,7 @@ func updateSettings(w http.ResponseWriter, r *http.Request, username string) {
 	json.NewEncoder(w).Encode(api.InspectResponse{
 		Key:         obj.ID,
 		Owner:       obj.Username,
-		Path:        obj.Filename,
+		Path:        obj.IdxPath,
 		CreatedAt:   obj.CreatedAt,
 		Protected:   obj.Password != "",
 		AccessScope: obj.AccessScope,
@@ -779,7 +782,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if obj != nil {
-			log.Printf("  Object found by username/path: %s/%s; uid: %s", obj.Username, obj.Path, obj.ID)
+			log.Printf("  Object found by username/path: %s/%s; uid: %s", obj.Username, obj.ObjPath, obj.ID)
 		}
 		if obj == nil {
 			http.Error(w, "object not found", http.StatusNotFound)
@@ -805,7 +808,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(api.InspectResponse{
 		Key:         obj.ID,
 		Owner:       obj.Username,
-		Path:        obj.Filename,
+		Path:        obj.IdxPath,
 		CreatedAt:   obj.CreatedAt,
 		Protected:   obj.Password != "",
 		AccessScope: obj.AccessScope,

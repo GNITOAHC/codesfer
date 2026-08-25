@@ -153,7 +153,7 @@ var editCmd = &cobra.Command{
 		}
 		cli.Edit(api.UpdateSettingsRequest{
 			Key:         changed("key"),
-			Filename:    changed("path"),
+			IdxPath:     changed("path"),
 			Desc:        changed("desc"),
 			AccessScope: changed("access"),
 		}, args[0])

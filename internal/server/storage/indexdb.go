@@ -24,11 +24,14 @@ const (
 )
 
 type Object struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	Filename    string `json:"filename"`
-	Password    string `json:"password"`
-	Path        string `json:"path"`
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	// Uploaded object's path in indexdb
+	IdxPath  string `json:"idx_path"`
+	Password string `json:"password"`
+	// ObjPath in object storage (unique), not same as IdxPath; this is the actual path where the object is stored
+	// It's immutable once created
+	ObjPath     string `json:"obj_path"`
 	CreatedAt   int64  `json:"created_at"`
 	Metadata    string `json:"metadata"`
 	AccessScope string `json:"access_scope"`
@@ -49,13 +52,13 @@ func createTable() error {
         CREATE TABLE IF NOT EXISTS %s (
             id VARCHAR(255) NOT NULL PRIMARY KEY,
 			username VARCHAR(255) NOT NULL,
-			filename VARCHAR(255),           -- Object's filename, directory is separated by slashes
+			idx_path VARCHAR(255),                        -- Object's index path, directory is separated by slashes
 			password VARCHAR(255),
-            path VARCHAR(255) UNIQUE,        -- Path in object storage
+            obj_path VARCHAR(255) UNIQUE,                 -- Path in object storage
             created_at INTEGER,
-			metadata TEXT,                   -- JSON string for additional metadata (TODO)
+			metadata TEXT,                                -- JSON string for additional metadata
 			access_scope VARCHAR(16) NOT NULL DEFAULT 'public', -- owner | authenticated | public
-            UNIQUE (username, filename)
+            UNIQUE (username, idx_path)
 	)`, tableName)
 
 	_, err := db.Exec(query)
@@ -75,7 +78,7 @@ func normalizeScope(s string) (string, error) {
 }
 
 func show(username string) ([]Object, error) {
-	query := fmt.Sprintf("SELECT id, username, filename, password, path, created_at, access_scope FROM %s WHERE username = ? ORDER BY created_at DESC", tableName)
+	query := fmt.Sprintf("SELECT id, username, idx_path, password, obj_path, created_at, access_scope FROM %s WHERE username = ? ORDER BY created_at DESC", tableName)
 	rows, err := db.Query(query, username)
 	if err != nil {
 		return nil, err
@@ -84,7 +87,7 @@ func show(username string) ([]Object, error) {
 	var objs []Object
 	for rows.Next() {
 		obj := Object{}
-		err := rows.Scan(&obj.ID, &obj.Username, &obj.Filename, &obj.Password, &obj.Path, &obj.CreatedAt, &obj.AccessScope)
+		err := rows.Scan(&obj.ID, &obj.Username, &obj.IdxPath, &obj.Password, &obj.ObjPath, &obj.CreatedAt, &obj.AccessScope)
 		if err != nil {
 			return nil, err
 		}
@@ -93,14 +96,14 @@ func show(username string) ([]Object, error) {
 	return objs, nil
 }
 
-func insert(id, user, filename, password, path, metadata, scope string) error {
-	query := fmt.Sprintf("INSERT INTO %s (id, username, filename, password, path, created_at, metadata, access_scope) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", tableName)
-	_, err := db.Exec(query, id, user, filename, password, path, time.Now().Unix(), metadata, scope)
+func insert(id, user, idxPath, password, path, metadata, scope string) error {
+	query := fmt.Sprintf("INSERT INTO %s (id, username, idx_path, password, obj_path, created_at, metadata, access_scope) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", tableName)
+	_, err := db.Exec(query, id, user, idxPath, password, path, time.Now().Unix(), metadata, scope)
 	return err
 }
 
 // upsert will overwrite an existing record only when it belongs to the same user.
-func upsert(id, user, filename, password, path, metadata, scope string) error {
+func upsert(id, user, idxPath, password, path, metadata, scope string) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -122,8 +125,8 @@ func upsert(id, user, filename, password, path, metadata, scope string) error {
 	}
 
 	// Insert new record
-	query := fmt.Sprintf("INSERT INTO %s (id, username, filename, password, path, created_at, metadata, access_scope) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", tableName)
-	_, err = tx.Exec(query, id, user, filename, password, path, time.Now().Unix(), metadata, scope)
+	query := fmt.Sprintf("INSERT INTO %s (id, username, idx_path, password, obj_path, created_at, metadata, access_scope) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", tableName)
+	_, err = tx.Exec(query, id, user, idxPath, password, path, time.Now().Unix(), metadata, scope)
 	if err != nil {
 		return err
 	}
@@ -135,7 +138,7 @@ func upsert(id, user, filename, password, path, metadata, scope string) error {
 }
 
 func getFiles(username string) ([]Object, error) {
-	query := fmt.Sprintf("SELECT filename FROM %s WHERE username = ? ORDER BY created_at DESC", tableName)
+	query := fmt.Sprintf("SELECT idx_path FROM %s WHERE username = ? ORDER BY created_at DESC", tableName)
 	rows, err := db.Query(query, username)
 	if err != nil {
 		return nil, err
@@ -144,7 +147,7 @@ func getFiles(username string) ([]Object, error) {
 	var objs []Object
 	for rows.Next() {
 		obj := Object{}
-		if err := rows.Scan(&obj.Filename); err != nil {
+		if err := rows.Scan(&obj.IdxPath); err != nil {
 			return nil, err
 		}
 		objs = append(objs, obj)
@@ -152,9 +155,9 @@ func getFiles(username string) ([]Object, error) {
 	return objs, nil
 }
 
-func haveFile(username, filename string) (bool, error) {
-	query := fmt.Sprintf("SELECT id FROM %s WHERE username = ? AND filename = ?", tableName)
-	row := db.QueryRow(query, username, filename)
+func haveFile(username, idxPath string) (bool, error) {
+	query := fmt.Sprintf("SELECT id FROM %s WHERE username = ? AND idx_path = ?", tableName)
+	row := db.QueryRow(query, username, idxPath)
 	var id string
 	if err := row.Scan(&id); err != nil {
 		if err.Error() == "sql: no rows in result set" {
@@ -166,10 +169,10 @@ func haveFile(username, filename string) (bool, error) {
 }
 
 func get(id string) (*Object, error) {
-	query := fmt.Sprintf("SELECT id, username, filename, password, path, created_at, COALESCE(metadata, ''), access_scope FROM %s WHERE id = ?", tableName)
+	query := fmt.Sprintf("SELECT id, username, idx_path, password, obj_path, created_at, COALESCE(metadata, ''), access_scope FROM %s WHERE id = ?", tableName)
 	row := db.QueryRow(query, id)
 	obj := &Object{}
-	err := row.Scan(&obj.ID, &obj.Username, &obj.Filename, &obj.Password, &obj.Path, &obj.CreatedAt, &obj.Metadata, &obj.AccessScope)
+	err := row.Scan(&obj.ID, &obj.Username, &obj.IdxPath, &obj.Password, &obj.ObjPath, &obj.CreatedAt, &obj.Metadata, &obj.AccessScope)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return nil, nil
@@ -179,12 +182,12 @@ func get(id string) (*Object, error) {
 	return obj, nil
 }
 
-// updateObject rewrites the mutable settings (id, filename, metadata,
+// updateObject rewrites the mutable settings (id, idx_path, metadata,
 // access_scope) of the object currently stored under oldID. The username
 // guard prevents updating someone else's object.
 func updateObject(oldID string, obj *Object) error {
-	query := fmt.Sprintf("UPDATE %s SET id = ?, filename = ?, metadata = ?, access_scope = ? WHERE id = ? AND username = ?", tableName)
-	res, err := db.Exec(query, obj.ID, obj.Filename, obj.Metadata, obj.AccessScope, oldID, obj.Username)
+	query := fmt.Sprintf("UPDATE %s SET id = ?, idx_path = ?, metadata = ?, access_scope = ? WHERE id = ? AND username = ?", tableName)
+	res, err := db.Exec(query, obj.ID, obj.IdxPath, obj.Metadata, obj.AccessScope, oldID, obj.Username)
 	if err != nil {
 		return err
 	}
@@ -201,7 +204,7 @@ func updateObject(oldID string, obj *Object) error {
 // removeByID removes the object with given id and returns the path in object storage
 // username should be provided to prevent unauthorized removal
 func removeByID(username, id string) (string, error) {
-	query := fmt.Sprintf("DELETE FROM %s WHERE username = ? AND id = ? returning path", tableName)
+	query := fmt.Sprintf("DELETE FROM %s WHERE username = ? AND id = ? returning obj_path", tableName)
 	var path string
 	if err := db.QueryRow(query, username, id).Scan(&path); err != nil {
 		return "", err
@@ -210,12 +213,12 @@ func removeByID(username, id string) (string, error) {
 }
 
 // getByUsernamePath returns the object with given username and path.
-// The path here refers to the `filename` field that is stored in the db
+// The path here refers to the `idx_path` field that is stored in the db
 func getByUsernamePath(username, path string) (*Object, error) {
-	query := fmt.Sprintf("SELECT id, username, filename, password, path, created_at, COALESCE(metadata, ''), access_scope FROM %s WHERE username = ? AND filename = ?", tableName)
+	query := fmt.Sprintf("SELECT id, username, idx_path, password, obj_path, created_at, COALESCE(metadata, ''), access_scope FROM %s WHERE username = ? AND idx_path = ?", tableName)
 	row := db.QueryRow(query, username, path)
 	obj := &Object{}
-	err := row.Scan(&obj.ID, &obj.Username, &obj.Filename, &obj.Password, &obj.Path, &obj.CreatedAt, &obj.Metadata, &obj.AccessScope)
+	err := row.Scan(&obj.ID, &obj.Username, &obj.IdxPath, &obj.Password, &obj.ObjPath, &obj.CreatedAt, &obj.Metadata, &obj.AccessScope)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return nil, nil
@@ -226,7 +229,7 @@ func getByUsernamePath(username, path string) (*Object, error) {
 }
 
 func getAllPaths() ([]string, error) {
-	query := fmt.Sprintf("SELECT path FROM %s ORDER BY created_at DESC", tableName)
+	query := fmt.Sprintf("SELECT obj_path FROM %s ORDER BY created_at DESC", tableName)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err

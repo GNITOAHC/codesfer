@@ -42,8 +42,8 @@ func TestUpsertRejectsCrossUserKeyOverwrite(t *testing.T) {
 	if obj == nil {
 		t.Fatal("shared key was deleted")
 	}
-	if obj.Username != "alice" || obj.Filename != "alice.zip" || obj.Path != "alice/alice.zip" {
-		t.Fatalf("shared key changed: got user=%q filename=%q path=%q", obj.Username, obj.Filename, obj.Path)
+	if obj.Username != "alice" || obj.IdxPath != "alice.zip" || obj.ObjPath != "alice/alice.zip" {
+		t.Fatalf("shared key changed: got user=%q filename=%q path=%q", obj.Username, obj.IdxPath, obj.ObjPath)
 	}
 }
 
@@ -65,7 +65,7 @@ func TestUpsertAllowsSameUserKeyOverwrite(t *testing.T) {
 	if obj == nil {
 		t.Fatal("shared key missing")
 	}
-	if obj.Username != "alice" || obj.Filename != "new.zip" || obj.Password != "secret" || obj.Path != "alice/new.zip" {
-		t.Fatalf("shared key not updated: got user=%q filename=%q password=%q path=%q", obj.Username, obj.Filename, obj.Password, obj.Path)
+	if obj.Username != "alice" || obj.IdxPath != "new.zip" || obj.Password != "secret" || obj.ObjPath != "alice/new.zip" {
+		t.Fatalf("shared key not updated: got user=%q filename=%q password=%q path=%q", obj.Username, obj.IdxPath, obj.Password, obj.ObjPath)
 	}
 }
