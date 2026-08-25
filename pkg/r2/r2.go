@@ -2,7 +2,6 @@
 package r2
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -119,69 +118,6 @@ func (s *Storage) Put(ctx context.Context, key string, r io.Reader, sizeHint int
 		return object.Object{}, err
 	}
 	return metaObj, nil
-}
-
-// Deprecated: MultipartPut is unreachable in practice; see Writer.MultipartPut.
-func (s *Storage) MultipartPut(ctx context.Context, key string, r io.Reader, partSize int64, meta map[string]string) (object.Object, error) {
-	if err := s.ensureClient(); err != nil {
-		return object.Object{}, err
-	}
-
-	createResp, err := s.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
-		Bucket:   aws.String(s.bucket),
-		Key:      aws.String(key),
-		Metadata: meta,
-	})
-	if err != nil {
-		return object.Object{}, mapError(err)
-	}
-
-	uploadID := aws.ToString(createResp.UploadId)
-	var completedParts []types.CompletedPart
-	buf := make([]byte, partSize)
-	partNum := int32(1)
-
-	for {
-		n, readErr := r.Read(buf)
-		if n > 0 {
-			partResp, err := s.client.UploadPart(ctx, &s3.UploadPartInput{
-				Bucket:     aws.String(s.bucket),
-				Key:        aws.String(key),
-				UploadId:   aws.String(uploadID),
-				PartNumber: aws.Int32(partNum),
-				Body:       bytes.NewReader(buf[:n]),
-			})
-			if err != nil {
-				return object.Object{}, mapError(err)
-			}
-
-			completedParts = append(completedParts, types.CompletedPart{
-				ETag:       partResp.ETag,
-				PartNumber: aws.Int32(partNum),
-			})
-			partNum++
-		}
-
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			return object.Object{}, fmt.Errorf("r2: read multipart chunk: %w", readErr)
-		}
-	}
-
-	if _, err := s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
-		Bucket:   aws.String(s.bucket),
-		Key:      aws.String(key),
-		UploadId: aws.String(uploadID),
-		MultipartUpload: &types.CompletedMultipartUpload{
-			Parts: completedParts,
-		},
-	}); err != nil {
-		return object.Object{}, mapError(err)
-	}
-
-	return s.Stat(ctx, key)
 }
 
 // CreateMultipart begins a multipart upload and returns the upload ID.
@@ -429,4 +365,3 @@ func mapError(err error) error {
 
 // Ensure Storage implements ObjectStorage and StreamingWriter interfaces.
 var _ object.ObjectStorage = (*Storage)(nil)
-var _ object.StreamingWriter = (*Storage)(nil)

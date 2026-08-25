@@ -112,11 +112,6 @@ func (s *Storage) Put(ctx context.Context, key string, r io.Reader, _ int64, con
 	return s.save(ctx, key, r, contentType, meta)
 }
 
-// Deprecated: MultipartPut is unreachable in practice; see Writer.MultipartPut.
-func (s *Storage) MultipartPut(ctx context.Context, key string, r io.Reader, _ int64, meta map[string]string) (object.Object, error) {
-	return s.save(ctx, key, r, "", meta)
-}
-
 // Get retrieves the object data and metadata.
 func (s *Storage) Get(ctx context.Context, key string, rng *object.Range) (object.Object, io.ReadCloser, error) {
 	if err := s.ensureDB(); err != nil {

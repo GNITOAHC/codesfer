@@ -50,11 +50,6 @@ type Reader interface {
 type Writer interface {
 	// Put uploads content and returns stored metadata.
 	Put(ctx context.Context, key string, r io.Reader, sizeHint int64, contentType string, meta map[string]string) (Object, error)
-	// Deprecated: MultipartPut is unreachable in practice. The client caps
-	// non-chunked uploads at 90 MB, below the 100 MB server threshold that
-	// would trigger this path. Large files use the chunked upload flow backed
-	// by StreamingWriter instead.
-	MultipartPut(ctx context.Context, key string, r io.Reader, partSize int64, meta map[string]string) (Object, error)
 }
 
 // Deleter exposes delete behavior.
@@ -68,10 +63,9 @@ type CompletedPart struct {
 	PartNumber int32
 }
 
-// StreamingWriter allows backends that support a native multipart protocol to
-// expose individual upload steps. Implementing this interface enables each
-// client chunk to be forwarded to object storage immediately, avoiding the need
-// to reassemble the full file on disk before the final upload.
+// StreamingWriter exposes the individual steps of a multipart upload, so each
+// client chunk can be forwarded to object storage as it arrives instead of
+// reassembling the whole file first. Every backend implements it.
 type StreamingWriter interface {
 	// CreateMultipart begins a multipart upload and returns the upload ID.
 	CreateMultipart(ctx context.Context, key string, meta map[string]string) (uploadID string, err error)
@@ -88,6 +82,7 @@ type ObjectStorage interface {
 	Lifecycle
 	Reader
 	Writer
+	StreamingWriter
 	Deleter
 	// Stat returns metadata without streaming the body.
 	Stat(ctx context.Context, key string) (Object, error)
