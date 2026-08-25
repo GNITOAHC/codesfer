@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gnitoahc/codesfer/pkg/object"
-	"github.com/gnitoahc/codesfer/pkg/r2"
+	"github.com/gnitoahc/codesfer/pkg/object/r2"
 
 	"github.com/gnitoahc/go-dotenv"
 )

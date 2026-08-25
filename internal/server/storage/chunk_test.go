@@ -17,7 +17,7 @@ import (
 
 	"github.com/gnitoahc/codesfer/pkg/api"
 	"github.com/gnitoahc/codesfer/pkg/object"
-	"github.com/gnitoahc/codesfer/pkg/sqlite"
+	"github.com/gnitoahc/codesfer/pkg/object/sqlite"
 )
 
 // setupChunkRoutes wires an index db and a sqlite object backend behind

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gnitoahc/codesfer/pkg/sqlite"
+	"github.com/gnitoahc/codesfer/pkg/object/sqlite"
 )
 
 func setupRemoveRoute(t *testing.T) *httptest.Server {
