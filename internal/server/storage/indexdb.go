@@ -137,24 +137,6 @@ func upsert(id, user, idxPath, password, path, metadata, scope string) error {
 	return nil
 }
 
-func getFiles(username string) ([]Object, error) {
-	query := fmt.Sprintf("SELECT idx_path FROM %s WHERE username = ? ORDER BY created_at DESC", tableName)
-	rows, err := db.Query(query, username)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var objs []Object
-	for rows.Next() {
-		obj := Object{}
-		if err := rows.Scan(&obj.IdxPath); err != nil {
-			return nil, err
-		}
-		objs = append(objs, obj)
-	}
-	return objs, nil
-}
-
 func haveFile(username, idxPath string) (bool, error) {
 	query := fmt.Sprintf("SELECT id FROM %s WHERE username = ? AND idx_path = ?", tableName)
 	row := db.QueryRow(query, username, idxPath)
