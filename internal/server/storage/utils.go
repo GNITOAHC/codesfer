@@ -10,8 +10,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-
-	"github.com/gnitoahc/codesfer/internal/constants"
 )
 
 // checkAccess decides whether username (empty = anonymous) may read obj with
@@ -96,45 +94,67 @@ func objPath(username, path string) string {
 	return fmt.Sprintf("%s/%s", username, strings.Trim(path, "/"))
 }
 
-// opupload will upload a file to object storage cloud and insert a record to database
-func opupload(ctx context.Context, file io.Reader, size int64, key, username, password, path string, overwrite bool, metadata, scope string) (string, error) {
-	var err error
+// uniqueIdxPath returns path, or path_1 / path_2 / ... when the user already has
+// a file under that name.
+//
+// one query per candidate, fine for the handful of collisions a real user hits.
+// Add a single indexed LIKE query if someone uploads path_500.
+func uniqueIdxPath(username, path string) (string, error) {
+	for i := 0; ; i++ {
+		candidate := path
+		if i > 0 {
+			candidate = fmt.Sprintf("%s_%d", path, i)
+		}
+		have, err := haveFile(username, candidate)
+		if err != nil {
+			return "", err
+		}
+		if !have {
+			log.Printf("[unique path] %s -> %s", path, candidate)
+			return candidate, nil
+		}
+	}
+}
 
+// saveRecord writes the index record for an uploaded object, generating a key
+// when the caller did not supply one. Returns the key in use.
+func saveRecord(key, username, path, password, objectPath, metadata, scope string, overwrite bool) (string, error) {
 	if key == "" {
 		uid, err := generateID(4)
 		if err != nil {
-			return "", errors.New("[op upload] [generate uid] generate uid failed: " + err.Error())
+			return "", errors.New("[save record] generate uid failed: " + err.Error())
 		}
 		key = uid
 	}
 
-	objectPath := objPath(username, path)
-
+	var err error
 	if overwrite {
-		log.Print("[op upload] overwrite is true, upsert record")
 		err = upsert(key, username, path, password, objectPath, metadata, scope)
 	} else {
-		log.Print("[op upload] overwrite is false, insert record")
 		err = insert(key, username, path, password, objectPath, metadata, scope)
 	}
 	if err != nil {
-		return "", errors.New("[op upload] [insert] insert failed: " + err.Error())
+		return "", errors.New("[save record] insert failed: " + err.Error())
+	}
+	return key, nil
+}
+
+// opupload uploads a file to object storage and inserts a record to the index.
+//
+// the record is written before the bytes land, so a failed upload leaves a dangling
+// index row. The chunked path does the reverse. Unify only with a matching cleanup job
+// for orphaned rows.
+func opupload(ctx context.Context, file io.Reader, key, username, password, path string, overwrite bool, metadata, scope string) (string, error) {
+	objectPath := objPath(username, path)
+
+	key, err := saveRecord(key, username, path, password, objectPath, metadata, scope, overwrite)
+	if err != nil {
+		return "", err
 	}
 
-	// Only upload after insert is successfull.
-	// Note: the multipart branch is unreachable in practice — the client caps
-	// non-chunked uploads at 90 MB, which is below multipartThreshold (100 MB).
-	// Large files go through the chunked upload path (StreamingWriter) instead.
-	if constants.UploadChunkSize < size {
-		log.Print("Stream via multipart")
-		if _, err := objectStorage.MultipartPut(ctx, objectPath, file, 8<<20, nil); err != nil {
-			return "", errors.New("[op upload] [multipart] multipart upload failed: " + err.Error())
-		}
-	} else {
-		log.Print("Single PutObject")
-		if _, err := objectStorage.Put(ctx, objectPath, file, -1, "", nil); err != nil {
-			return "", errors.New("[op upload] [single putobject] upload failed: " + err.Error())
-		}
+	// Only upload after the record is stored successfully.
+	if _, err := objectStorage.Put(ctx, objectPath, file, -1, "", nil); err != nil {
+		return "", errors.New("[op upload] [put] upload failed: " + err.Error())
 	}
 
 	return key, nil

@@ -103,35 +103,6 @@ func TestSQLiteObjectStorage(t *testing.T) {
 	}
 }
 
-func TestSQLiteMultipartPut(t *testing.T) {
-	ctx := context.Background()
-	st := newTestStorage(t, true)
-
-	key := "multipart-key"
-	content := bytes.Repeat([]byte("a"), 256*1024) // 256 KB
-
-	putObj, err := st.MultipartPut(ctx, key, bytes.NewReader(content), 64*1024, map[string]string{"mode": "multipart"})
-	if err != nil {
-		t.Fatalf("MultipartPut: %v", err)
-	}
-	if putObj.Size != int64(len(content)) {
-		t.Fatalf("MultipartPut: expected size %d got %d", len(content), putObj.Size)
-	}
-
-	_, rc, err := st.Get(ctx, key, nil)
-	if err != nil {
-		t.Fatalf("Get after multipart: %v", err)
-	}
-	defer rc.Close()
-	body, err := io.ReadAll(rc)
-	if err != nil {
-		t.Fatalf("Get read after multipart: %v", err)
-	}
-	if len(body) != len(content) {
-		t.Fatalf("Get after multipart: size mismatch, got %d want %d", len(body), len(content))
-	}
-}
-
 func TestSQLiteConflict(t *testing.T) {
 	ctx := context.Background()
 	st := newTestStorage(t, false) // no overwrite

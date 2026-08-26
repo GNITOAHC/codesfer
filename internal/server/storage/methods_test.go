@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnitoahc/codesfer/pkg/sqlite"
+	"github.com/gnitoahc/codesfer/pkg/object/sqlite"
 )
 
 // setupDownloadRoute wires an index db and a sqlite object storage backend,
