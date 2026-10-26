@@ -69,8 +69,8 @@ Run `codeserver serve --port 3000`.
 
 Run `codeserver init` to generate a `.env` file.
 
-- `DB_SOURCE`: Auth DB path.
-- `INDEX_DB_SOURCE`: File index path.
+- `AUTH_DB_DRIVER` / `INDEX_DB_DRIVER`: `sqlite` or `postgres`.
+- `AUTH_DB_SOURCE` / `INDEX_DB_SOURCE`: SQLite path (`file:auth.db?cache=shared`) or Postgres URL (`postgres://user:pass@host:5432/db`).
 - `OBJECT_BACKEND_DRIVER`: `sqlite` (local) or `r2` (Cloudflare).
 - `OBJECT_STORAGE_SOURCE`: Path for SQLite storage.
 - **R2 Config**: `CF_ACCOUNT_ID`, `CF_ACCESS_KEY`, `CF_SECRET_ACCESS_KEY`, `CF_BUCKET`.

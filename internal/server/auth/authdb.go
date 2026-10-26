@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 )
@@ -54,27 +54,32 @@ func connect(driver, source string) error {
 }
 
 func createTable() error {
-	query := `
+	// Separate Exec calls: postgres rejects multiple statements in one prepared query.
+	queries := []string{`
         CREATE TABLE IF NOT EXISTS users (
             email VARCHAR(255) PRIMARY KEY,
 			password VARCHAR(255),
             username VARCHAR(255) UNIQUE,
-            created_at INTEGER
-        );
+            created_at BIGINT
+        )`, `
 		CREATE TABLE IF NOT EXISTS sessions (
             id VARCHAR(255) PRIMARY KEY,
             email VARCHAR(255),
 			name VARCHAR(255),
 			location VARCHAR(255),
 			agent VARCHAR(255),
-			last_seen INTEGER,
-            created_at INTEGER,
+			last_seen BIGINT,
+            created_at BIGINT,
 
 			FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
-	)`
+	)`}
 
-	_, err := db.Exec(query)
-	return err
+	for _, query := range queries {
+		if _, err := db.Exec(query); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // hash a plain text password
@@ -109,14 +114,14 @@ func createUser(email, password, username string) error {
 		return err
 	}
 	db.Exec(
-		"INSERT INTO users (email, password, username, created_at) VALUES (?, ?, ?, ?)",
+		"INSERT INTO users (email, password, username, created_at) VALUES ($1, $2, $3, $4)",
 		email, hashed, username, time.Now().Unix(),
 	)
 	return nil
 }
 
 func getUser(email string) (*User, error) {
-	row := db.QueryRow("SELECT email, password, username FROM users WHERE email = ?", email)
+	row := db.QueryRow("SELECT email, password, username FROM users WHERE email = $1", email)
 	user := &User{}
 	err := row.Scan(&user.Email, &user.Password, &user.Username)
 	if err != nil {
@@ -147,7 +152,7 @@ func createSession(email, agent, ip string) (string, error) {
 		location = "unknown"
 	}
 
-	query := "INSERT INTO sessions (id, email, name, location, agent, last_seen, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	query := "INSERT INTO sessions (id, email, name, location, agent, last_seen, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 	_, err = db.Exec(query, uniqueID, email, sessionName, location, agent, time.Now().Unix(), time.Now().Unix())
 	if err != nil {
 		return "", err
@@ -156,7 +161,7 @@ func createSession(email, agent, ip string) (string, error) {
 }
 
 func getSession(sessionID string) (*Session, error) {
-	row := db.QueryRow("SELECT id, email, name, location, agent, last_seen, created_at FROM sessions WHERE id = ?", sessionID)
+	row := db.QueryRow("SELECT id, email, name, location, agent, last_seen, created_at FROM sessions WHERE id = $1", sessionID)
 	session := &Session{}
 	err := row.Scan(&session.ID, &session.Email, &session.Name, &session.Location, &session.Agent, &session.LastSeen, &session.CreatedAt)
 	if err != nil {
@@ -169,7 +174,7 @@ func getSession(sessionID string) (*Session, error) {
 }
 
 func getSessions(email string) ([]Session, error) {
-	rows, err := db.Query("SELECT id, name, location, agent, last_seen, created_at FROM sessions WHERE email = ?", email)
+	rows, err := db.Query("SELECT id, name, location, agent, last_seen, created_at FROM sessions WHERE email = $1", email)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +192,7 @@ func getSessions(email string) ([]Session, error) {
 }
 
 func deleteSession(sessionID string) error {
-	query := "DELETE FROM sessions WHERE id = ?"
+	query := "DELETE FROM sessions WHERE id = $1"
 	_, err := db.Exec(query, sessionID)
 	if err != nil {
 		return err
@@ -197,7 +202,7 @@ func deleteSession(sessionID string) error {
 
 // deleteSessionByName deletes a session by its public name for the given user email.
 func deleteSessionByName(email, name string) error {
-	query := "DELETE FROM sessions WHERE email = ? AND name = ?"
+	query := "DELETE FROM sessions WHERE email = $1 AND name = $2"
 	result, err := db.Exec(query, email, name)
 	if err != nil {
 		return err
@@ -213,7 +218,7 @@ func deleteSessionByName(email, name string) error {
 }
 
 func updateSessionLastSeen(sessionID string) error {
-	query := "UPDATE sessions SET last_seen = ? WHERE id = ?"
+	query := "UPDATE sessions SET last_seen = $1 WHERE id = $2"
 	_, err := db.Exec(query, time.Now().Unix(), sessionID)
 	if err != nil {
 		return err
@@ -222,7 +227,7 @@ func updateSessionLastSeen(sessionID string) error {
 }
 
 func usernameExists(username string) bool {
-	row := db.QueryRow("SELECT username FROM users WHERE username = ?", username)
+	row := db.QueryRow("SELECT username FROM users WHERE username = $1", username)
 	user := &User{}
 	err := row.Scan(&user.Username)
 	if err != nil {
