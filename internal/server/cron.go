@@ -12,6 +12,7 @@ import (
 // 1. Clean up expired sessions (wip)
 // 2. Remove orphaned objects
 // 3. Abort abandoned chunked uploads
+// 4. Remove expired (anonymous) uploads and stale rate-limit windows
 func AddCronJobs(cronMgr *cron.Manager) {
 	jobCleanObjs := func(ctx context.Context) error {
 		return storage.RemoveOrphanedObject()
@@ -24,4 +25,10 @@ func AddCronJobs(cronMgr *cron.Manager) {
 	// The interval only decides how promptly an abandoned upload is released;
 	// the sweep is safe to run at any frequency, so keep it well under the TTL.
 	cronMgr.Add("sweep-chunk-sessions", time.Hour, jobSweepChunks)
+
+	jobSweepExpired := func(ctx context.Context) error {
+		storage.PruneAnonWindows(time.Now())
+		return storage.SweepExpiredObjects(ctx)
+	}
+	cronMgr.Add("sweep-expired-objects", time.Hour, jobSweepExpired)
 }

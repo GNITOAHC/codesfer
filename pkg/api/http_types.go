@@ -36,8 +36,9 @@ type ListResponse []SingleObject
 
 // Endpoint: /storage/upload
 type UploadResponse struct {
-	Uid  string `json:"uid"`
-	Path string `json:"path"`
+	Uid       string `json:"uid"`
+	Path      string `json:"path"`
+	ExpiresAt int64  `json:"expires_at,omitempty"` // unix seconds; set for anonymous uploads
 }
 
 // Endpoint: /storage/remove
@@ -61,4 +62,5 @@ type InspectResponse struct {
 	Protected   bool           `json:"protected"`    // true if password-protected
 	AccessScope string         `json:"access_scope"` // owner | authenticated | public
 	Metadata    map[string]any `json:"metadata,omitempty"`
+	ExpiresAt   int64          `json:"expires_at,omitempty"` // unix seconds; 0 = never
 }

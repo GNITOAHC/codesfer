@@ -36,7 +36,7 @@ func setupDownloadRoute(t *testing.T) *httptest.Server {
 func seedObject(t *testing.T, key, owner, password, scope string, storeBody bool) {
 	t.Helper()
 	path := owner + "/" + key + ".zip"
-	if err := insert(key, owner, key+".zip", password, path, "{}", scope); err != nil {
+	if err := insert(key, owner, key+".zip", password, path, "{}", scope, 0); err != nil {
 		t.Fatalf("insert %s: %v", key, err)
 	}
 	if storeBody {
