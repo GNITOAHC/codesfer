@@ -114,23 +114,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		agent = r.Header.Get("X-Forwarded-User-Agent")
 	}
 
-	// Get real IP from headers if behind proxy
-	ip := r.Header.Get("CF-Connecting-IP") // Cloudflare
-	if ip == "" {
-		ip = r.Header.Get("X-Forwarded-For") // Standard header
-	}
-	if ip == "" {
-		// Fallback to RemoteAddr
-		var err error
-		ip, _, err = net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			log.Printf("  failed to split remote addr: %v", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	sessionID, err := createSession(data.Email, agent, ip)
+	sessionID, err := createSession(data.Email, agent, ClientIP(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -138,6 +122,24 @@ func login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Session-ID", sessionID)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(sessionID))
+}
+
+// ClientIP returns the caller's IP, preferring the headers set by the proxy in
+// front of the server.
+//
+// ponytail: headers are trusted as-is, so without Cloudflare in front any
+// client can spoof them. Strip or verify them at the edge if self-hosted bare.
+func ClientIP(r *http.Request) string {
+	if ip := r.Header.Get("CF-Connecting-IP"); ip != "" { // Cloudflare
+		return ip
+	}
+	if ip := r.Header.Get("X-Forwarded-For"); ip != "" { // Standard header
+		return ip
+	}
+	if ip, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return ip
+	}
+	return r.RemoteAddr
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {

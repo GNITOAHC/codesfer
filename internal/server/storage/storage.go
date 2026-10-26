@@ -10,7 +10,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/gnitoahc/codesfer/internal/constants"
+	"github.com/gnitoahc/codesfer/internal/server/auth"
 	"github.com/gnitoahc/codesfer/pkg/api"
 	"github.com/gnitoahc/codesfer/pkg/object"
 )
@@ -32,7 +35,7 @@ func StorageHandler(driver, source string, objStorage object.ObjectStorage) http
 	objectStorage = objStorage
 
 	storageHandler := http.NewServeMux()
-	storageHandler.HandleFunc("POST /upload", requireUser("upload", upload))
+	storageHandler.HandleFunc("POST /upload", upload) // anonymous allowed
 	storageHandler.HandleFunc("POST /upload/chunk", requireUser("upload", uploadChunk))
 	storageHandler.HandleFunc("GET /download", download)
 	storageHandler.HandleFunc("GET /list", requireUser("list", func(w http.ResponseWriter, r *http.Request, _ string) { list(w, r) }))
@@ -84,14 +87,33 @@ func list(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// upload compressed file to R2 and return uid; path: username/<dir>/filename
+// upload compressed file to object storage and return uid; path: username/<dir>/filename
 // file: multipart/form-data
 // key: optional
 // path: optional
 // password: optional
 // force: optional
-func upload(w http.ResponseWriter, r *http.Request, username string) {
+//
+// Without a session the upload is anonymous: rate limited per IP, capped at
+// UploadChunkSize, always public with a generated key, and expiring after
+// AnonUploadTTL. key, force and access are ignored.
+func upload(w http.ResponseWriter, r *http.Request) {
+	username := r.Header.Get("X-Username")
+	anonymous := username == ""
+	if anonymous {
+		if !allowAnonUpload(auth.ClientIP(r), time.Now()) {
+			http.Error(w, "too many anonymous uploads, try again later or log in", http.StatusTooManyRequests)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, constants.UploadChunkSize+anonFormSlack)
+	}
+
 	if err := r.ParseMultipartForm(maxUploadMemory); err != nil {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			http.Error(w, fmt.Sprintf("anonymous uploads are limited to %d MB, log in for larger files", constants.UploadChunkSize>>20), http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "failed to parse form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -103,42 +125,59 @@ func upload(w http.ResponseWriter, r *http.Request, username string) {
 	}
 	defer file.Close()
 
-	key := r.FormValue("key")
-	path := r.FormValue("path")
-	password := r.FormValue("password")
-	meta := r.FormValue("meta")
-	scope, err := normalizeScope(r.FormValue("access"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	rec := uploadRecord{
+		Username: username,
+		Key:      r.FormValue("key"),
+		IdxPath:  r.FormValue("path"),
+		Password: r.FormValue("password"),
+		Meta:     r.FormValue("meta"),
 	}
-	if path == "" || path == "." || path == "/" { // path gaurd
-		path = header.Filename
+	if anonymous {
+		// Everyone shares anonUsername, so nothing here may let one anonymous
+		// upload claim or replace another's: no custom key, no overwrite.
+		name := sanitizeFilename(header.Filename)
+		if name == "" {
+			name = "file"
+		}
+		id, err := generateID(objPathIDLen)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rec.Username = anonUsername
+		rec.Key = ""
+		rec.KeyLen = anonKeyLen
+		rec.IdxPath = id + "/" + name // unique by construction, skips uniqueIdxPath
+		rec.Scope = ScopePublic
+		rec.ExpiresAt = time.Now().Add(constants.AnonUploadTTL).Unix()
+	} else {
+		if rec.Scope, err = normalizeScope(r.FormValue("access")); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if rec.IdxPath == "" || rec.IdxPath == "." || rec.IdxPath == "/" { // path gaurd
+			rec.IdxPath = header.Filename
+		}
+		// Make sure the filename is unique per user
+		if rec.IdxPath, err = uniqueIdxPath(username, rec.IdxPath); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rec.Overwrite = r.FormValue("force") == "true"
 	}
-	log.Printf("[/storage/upload] user %s is trying to upload file with key: %s; path: %s; password: %s", username, key, path, password)
+	log.Printf("[/storage/upload] user %s is trying to upload file with key: %s; path: %s", rec.Username, rec.Key, rec.IdxPath)
 
-	// Make sure the filename is unique per user
-	path, err = uniqueIdxPath(username, path)
+	uid, err := opupload(r.Context(), file, rec)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	overwrite := false
-	if r.FormValue("force") == "true" {
-		overwrite = true
-	}
-
-	uid, err := opupload(r.Context(), file, key, username, password, path, overwrite, meta, scope)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), recordStatus(err))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(api.UploadResponse{
-		Uid:  uid,
-		Path: path,
+		Uid:       uid,
+		Path:      rec.IdxPath,
+		ExpiresAt: rec.ExpiresAt,
 	})
 }
 
@@ -260,12 +299,12 @@ func updateSettings(w http.ResponseWriter, r *http.Request, username string) {
 
 	oldID := obj.ID
 	if req.Key != nil && *req.Key != "" && *req.Key != obj.ID {
-		existing, err := get(*req.Key)
+		taken, err := keyExists(*req.Key)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if existing != nil {
+		if taken {
 			http.Error(w, "key already in use: "+*req.Key, http.StatusConflict)
 			return
 		}
@@ -332,6 +371,7 @@ func updateSettings(w http.ResponseWriter, r *http.Request, username string) {
 		Protected:   obj.Password != "",
 		AccessScope: obj.AccessScope,
 		Metadata:    metadata,
+		ExpiresAt:   obj.ExpiresAt,
 	})
 }
 
@@ -377,5 +417,6 @@ func info(w http.ResponseWriter, r *http.Request) {
 		Protected:   obj.Password != "",
 		AccessScope: obj.AccessScope,
 		Metadata:    metadata,
+		ExpiresAt:   obj.ExpiresAt,
 	})
 }

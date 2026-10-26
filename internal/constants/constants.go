@@ -14,4 +14,13 @@ const (
 	// upload time: an upload of any duration is safe as long as no gap between
 	// two chunks exceeds this. Single source of truth for the sweep.
 	ChunkSessionTTL = 5 * time.Hour
+
+	// AnonUploadTTL is how long an anonymous upload lives before the expiry
+	// sweep deletes it.
+	AnonUploadTTL = 7 * 24 * time.Hour
+
+	// AnonUploadLimit anonymous uploads are allowed per client IP in each
+	// AnonUploadWindow.
+	AnonUploadLimit  = 10
+	AnonUploadWindow = time.Hour
 )
