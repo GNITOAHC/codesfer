@@ -15,6 +15,7 @@ func SetupEnv(dotenvPath string) {
 		"# | |__| (_) | (_| |  __/\\__ \\  _|  __/ |    | |___| | | \\ V / \n" +
 		"#  \\____\\___/ \\__,_|\\___||___/_|  \\___|_|    |_____|_| |_|\\_/\n" +
 		"\n" +
+		"# DB drivers: sqlite or postgres (source e.g. postgres://user:pass@host:5432/db)\n" +
 		"AUTH_DB_DRIVER=sqlite\n" +
 		"AUTH_DB_SOURCE=file:auth.db?cache=shared\n" +
 		"INDEX_DB_DRIVER=sqlite\n" +
