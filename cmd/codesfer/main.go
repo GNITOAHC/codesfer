@@ -171,6 +171,53 @@ var inspectCmd = &cobra.Command{
 	},
 }
 
+var urlCmd = &cobra.Command{
+	Use:   "url",
+	Short: "The tiny url feature for Codesfer",
+}
+
+// lnk.codesfer.io/u/<username>/<handle>   custom shorten url
+// lnk.codesfer.io/u/<username>            user profile
+// lnk.codesfer.io/r/<handle>              shorten url (default)
+// -h/--handle <handle>     create custom shorten url under username
+// -p/--password <password> password protect the shorten url
+// tinyurl created anonymously will be expired after certain time
+var urlNewCmd = &cobra.Command{
+	Use:   "new [long_url]",
+	Short: "Generate a tiny url",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		// cli.UrlNew(args[0])
+	},
+}
+
+var urlListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all tiny urls created by you",
+	Aliases: []string{"ls"},
+	Run: func(cmd *cobra.Command, args []string) {
+		// cli.UrlList()
+	},
+}
+
+var urlRemoveCmd = &cobra.Command{
+	Use:   "remove [handle]",
+	Short: "Remove a tiny url",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		// cli.UrlRemove(args[0])
+	},
+}
+
+var urlGetCmd = &cobra.Command{
+	Use:   "get [handle]",
+	Short: "Get a tiny url",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		// cli.UrlGet(args[0])
+	},
+}
+
 func main() {
 	// =============
 	// pushCmd flags
