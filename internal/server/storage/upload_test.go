@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gnitoahc/codesfer/internal/constants"
+	"github.com/gnitoahc/codesfer/internal/server/auth"
 	"github.com/gnitoahc/codesfer/pkg/api"
 	"github.com/gnitoahc/codesfer/pkg/object"
 	"github.com/gnitoahc/codesfer/pkg/object/sqlite"
@@ -38,13 +39,11 @@ func setupUploadRoutes(t *testing.T) *httptest.Server {
 	chunkSessionsMu.Lock()
 	chunkSessions = map[string]*chunkSession{}
 	chunkSessionsMu.Unlock()
-	anonWindowsMu.Lock()
-	anonWindows = map[string]*anonWindow{}
-	anonWindowsMu.Unlock()
+	auth.PruneAnonWindows(time.Now().Add(constants.AnonUploadWindow)) // drops every window
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /upload", upload)
-	mux.HandleFunc("POST /upload/chunk", requireUser("upload", uploadChunk))
+	mux.HandleFunc("POST /upload/chunk", auth.RequireUser("upload", uploadChunk))
 	mux.HandleFunc("GET /download", download)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -195,7 +194,7 @@ func TestAnonymousUpload(t *testing.T) {
 			t.Fatalf("expires in %v, want about %v", ttl, constants.AnonUploadTTL)
 		}
 		obj, err := get(res.Uid)
-		if err != nil || obj == nil || obj.Username != anonUsername || obj.AccessScope != ScopePublic {
+		if err != nil || obj == nil || obj.Username != auth.AnonUsername || obj.AccessScope != ScopePublic {
 			t.Fatalf("record: %+v %v", obj, err)
 		}
 	}
@@ -265,8 +264,8 @@ func TestAnonymousUploadRateLimit(t *testing.T) {
 		t.Fatalf("signed-in upload: got %d want 200", resp.StatusCode)
 	}
 
-	PruneAnonWindows(time.Now().Add(constants.AnonUploadWindow))
-	if !allowAnonUpload("1.2.3.4", time.Now()) {
+	auth.PruneAnonWindows(time.Now().Add(constants.AnonUploadWindow))
+	if !auth.AllowAnon("1.2.3.4", time.Now()) {
 		t.Fatal("limit not reset after the window ended")
 	}
 }
@@ -286,7 +285,7 @@ func TestExpiredObjects(t *testing.T) {
 	ctx := context.Background()
 
 	past := time.Now().Add(-time.Minute).Unix()
-	if err := insert("old", anonUsername, "x/old.zip", "", "anon/x/old.zip", "{}", ScopePublic, past); err != nil {
+	if err := insert("old", auth.AnonUsername, "x/old.zip", "", "anon/x/old.zip", "{}", ScopePublic, past); err != nil {
 		t.Fatalf("insert expired: %v", err)
 	}
 	if _, err := objectStorage.Put(ctx, "anon/x/old.zip", strings.NewReader("old"), 3, "", nil); err != nil {

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnitoahc/codesfer/internal/server/auth"
 	"github.com/gnitoahc/codesfer/pkg/api"
 	"github.com/gnitoahc/codesfer/pkg/object"
 	"github.com/gnitoahc/codesfer/pkg/object/sqlite"
@@ -39,7 +40,7 @@ func setupChunkRoutes(t *testing.T) *httptest.Server {
 	chunkSessionsMu.Unlock()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /upload/chunk", requireUser("upload", uploadChunk))
+	mux.HandleFunc("POST /upload/chunk", auth.RequireUser("upload", uploadChunk))
 	mux.HandleFunc("GET /download", download)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)

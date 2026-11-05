@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gnitoahc/codesfer/internal/constants"
+	"github.com/gnitoahc/codesfer/internal/server/auth"
 	"github.com/gnitoahc/codesfer/internal/server/storage"
 	"github.com/gnitoahc/codesfer/pkg/cron"
 )
@@ -27,7 +28,7 @@ func AddCronJobs(cronMgr *cron.Manager) {
 	cronMgr.Add("sweep-chunk-sessions", time.Hour, jobSweepChunks)
 
 	jobSweepExpired := func(ctx context.Context) error {
-		storage.PruneAnonWindows(time.Now())
+		auth.PruneAnonWindows(time.Now())
 		return storage.SweepExpiredObjects(ctx)
 	}
 	cronMgr.Add("sweep-expired-objects", time.Hour, jobSweepExpired)

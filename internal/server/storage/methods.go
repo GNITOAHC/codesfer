@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gnitoahc/codesfer/internal/server/reply"
 )
 
 func RemoveOrphanedObject() error {
@@ -76,11 +78,11 @@ func DownloadRoute(w http.ResponseWriter, r *http.Request) {
 	obj, err := get(key)
 	if err != nil {
 		log.Printf("  index lookup error: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, "internal error", "")
+		reply.Error(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}
 	if obj == nil {
-		writeJSONError(w, http.StatusNotFound, "not found", "")
+		reply.Error(w, http.StatusNotFound, "not found", "")
 		return
 	}
 	log.Printf("  Object found by key: %s", obj.ID)
@@ -93,14 +95,14 @@ func DownloadRoute(w http.ResponseWriter, r *http.Request) {
 	// password only, scoped objects always ask for login (use /storage/download
 	// for authenticated access).
 	if status, msg, gate := checkAccess(obj, "", r.URL.Query().Get("password")); status != 0 {
-		writeJSONError(w, status, msg, gate)
+		reply.Error(w, status, msg, gate)
 		return
 	}
 
 	meta, body, err := objectStorage.Get(r.Context(), obj.ObjPath, nil)
 	if err != nil {
 		log.Printf("  object storage read error: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, "internal error", "")
+		reply.Error(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}
 	defer body.Close()

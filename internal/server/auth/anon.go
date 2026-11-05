@@ -1,4 +1,4 @@
-package storage
+package auth
 
 import (
 	"sync"
@@ -7,15 +7,11 @@ import (
 	"github.com/gnitoahc/codesfer/internal/constants"
 )
 
-// anonUsername owns every anonymous upload. It is a reserved username, so no
-// account can claim it.
-const anonUsername = "anon"
+// AnonUsername owns every anonymous upload and short url. It is a reserved
+// username, so no account can claim it.
+const AnonUsername = "anon"
 
-// anonFormSlack is headroom over the file size cap for the multipart framing
-// and text fields around it.
-const anonFormSlack = 1 << 20
-
-// anonWindow counts one IP's anonymous uploads in the current window.
+// anonWindow counts one IP's anonymous requests in the current window.
 type anonWindow struct {
 	start time.Time
 	count int
@@ -29,9 +25,9 @@ var (
 	anonWindowsMu sync.Mutex
 )
 
-// allowAnonUpload reports whether ip may upload anonymously now, counting the
+// AllowAnon reports whether ip may upload anonymously now, counting the
 // attempt when it may.
-func allowAnonUpload(ip string, now time.Time) bool {
+func AllowAnon(ip string, now time.Time) bool {
 	anonWindowsMu.Lock()
 	defer anonWindowsMu.Unlock()
 
