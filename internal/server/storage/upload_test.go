@@ -199,6 +199,12 @@ func TestAnonymousUpload(t *testing.T) {
 			t.Fatalf("record: %+v %v", obj, err)
 		}
 	}
+	// A requested path keeps its last segment, behind the random id.
+	named := decodeUpload(t, postUpload(t, srv, "", "1.2.3.4", map[string]string{"path": "dir/proj"}, []byte("x")))
+	if !strings.HasSuffix(named.Path, "/proj") || strings.Count(named.Path, "/") != 1 {
+		t.Fatalf("path = %q, want <id>/proj", named.Path)
+	}
+
 	if first.Uid == second.Uid || first.Path == second.Path {
 		t.Fatalf("second anonymous upload collided with the first: %+v %+v", first, second)
 	}

@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gnitoahc/codesfer/internal/constants"
@@ -135,8 +136,13 @@ func upload(w http.ResponseWriter, r *http.Request) {
 	if anonymous {
 		// Everyone shares anonUsername, so nothing here may let one anonymous
 		// upload claim or replace another's: no custom key, no overwrite.
-		name := sanitizeFilename(header.Filename)
-		if name == "" {
+		// Keep only the last segment of the requested name: the random id
+		// prefix is what keeps it unique.
+		name := sanitizeFilename(strings.Trim(rec.IdxPath, "/"))
+		if name == "" || name == "." || name == ".." {
+			name = sanitizeFilename(header.Filename)
+		}
+		if name == "" || name == "." || name == ".." {
 			name = "file"
 		}
 		id, err := generateID(objPathIDLen)

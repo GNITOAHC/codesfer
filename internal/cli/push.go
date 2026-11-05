@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/gnitoahc/codesfer/internal/client"
 	"github.com/gnitoahc/codesfer/internal/constants"
@@ -76,9 +77,15 @@ func Push(flags PushFlags, args []string) {
 
 	customPath := getPath(flags, args)
 
-	sessionID := client.ReadSessionID()
-	if sessionID == "" {
-		log.Fatal("You are not logged in. Login first push.")
+	// Not logged in: push anonymously. The server ignores key, force and
+	// access for anonymous uploads, so refuse them here instead.
+	anonymous := client.ReadSessionID() == ""
+	if anonymous {
+		if flags.Key != "" || flags.Force || (flags.Access != "" && flags.Access != "public") {
+			log.Fatal("--key, --force and --access require login (codesfer auth); anonymous pushes are always public with a generated key")
+		}
+		log.Printf("%sNot logged in: pushing anonymously (public, expires in %s)%s",
+			colorYellow, formatDuration(constants.AnonUploadTTL), colorReset)
 	}
 	log.Printf("Pushing code with name: %s%s%s", colorYellow, customPath, colorReset)
 
@@ -124,6 +131,9 @@ func Push(flags PushFlags, args []string) {
 	}
 
 	var resp *api.UploadResponse
+	if anonymous && constants.UploadChunkSize < zipInfo.Size() {
+		log.Fatalf("Anonymous pushes are limited to %s; log in (codesfer auth) for larger uploads", formatSize(constants.UploadChunkSize))
+	}
 	if constants.UploadChunkSize < zipInfo.Size() {
 		log.Printf("File exceeds 90 MB, switching to chunked upload")
 		resp, err = client.PushChunked(form, f.Name())
@@ -137,6 +147,17 @@ func Push(flags PushFlags, args []string) {
 
 	fmt.Printf("ID: %s\n", resp.Uid)
 	fmt.Printf("Path: %s\n", resp.Path)
+	if resp.ExpiresAt > 0 {
+		fmt.Printf("Expires: %s\n", time.Unix(resp.ExpiresAt, 0).Format(time.DateTime))
+	}
+}
+
+// formatDuration renders whole days as "N days", otherwise Go's default.
+func formatDuration(d time.Duration) string {
+	if d%(24*time.Hour) == 0 {
+		return fmt.Sprintf("%d days", d/(24*time.Hour))
+	}
+	return d.String()
 }
 
 func formatSize(b int64) string {
