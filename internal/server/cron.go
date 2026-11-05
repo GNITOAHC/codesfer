@@ -2,18 +2,20 @@ package server
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/gnitoahc/codesfer/internal/constants"
 	"github.com/gnitoahc/codesfer/internal/server/auth"
 	"github.com/gnitoahc/codesfer/internal/server/storage"
+	"github.com/gnitoahc/codesfer/internal/server/url"
 	"github.com/gnitoahc/codesfer/pkg/cron"
 )
 
 // 1. Clean up expired sessions (wip)
 // 2. Remove orphaned objects
 // 3. Abort abandoned chunked uploads
-// 4. Remove expired (anonymous) uploads and stale rate-limit windows
+// 4. Remove expired (anonymous) uploads, short urls and stale rate-limit windows
 func AddCronJobs(cronMgr *cron.Manager) {
 	jobCleanObjs := func(ctx context.Context) error {
 		return storage.RemoveOrphanedObject()
@@ -29,7 +31,7 @@ func AddCronJobs(cronMgr *cron.Manager) {
 
 	jobSweepExpired := func(ctx context.Context) error {
 		auth.PruneAnonWindows(time.Now())
-		return storage.SweepExpiredObjects(ctx)
+		return errors.Join(url.SweepExpired(ctx), storage.SweepExpiredObjects(ctx))
 	}
 	cronMgr.Add("sweep-expired-objects", time.Hour, jobSweepExpired)
 }

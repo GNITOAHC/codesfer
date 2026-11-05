@@ -64,3 +64,16 @@ type InspectResponse struct {
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	ExpiresAt   int64          `json:"expires_at,omitempty"` // unix seconds; 0 = never
 }
+
+// Endpoint: /url/new, /url/info; /url/list returns ShortURLListResponse
+type ShortURLResponse struct {
+	Handle    string `json:"handle"`
+	URL       string `json:"url"`                  // {LINK_BASE_URL}/r/<handle>
+	CustomURL string `json:"custom_url,omitempty"` // {LINK_BASE_URL}/u/<username>/<custom>
+	Target    string `json:"target"`
+	Password  string `json:"password,omitempty"` // only sent to the owner
+	Protected bool   `json:"protected"`
+	CreatedAt int64  `json:"created_at"`
+	ExpiresAt int64  `json:"expires_at,omitempty"` // unix seconds; set for anonymous links
+}
+type ShortURLListResponse []ShortURLResponse

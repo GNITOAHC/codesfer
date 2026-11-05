@@ -30,6 +30,9 @@ func SetupEnv(dotenvPath string) {
 		"CF_BUCKET=\n" +
 		"\n" +
 		"CORS_ALLOWED_ORIGINS=https://codesfer.io,https://www.codesfer.io\n" +
+		"\n" +
+		"# Public base for short urls ('codesfer url new')\n" +
+		"LINK_BASE_URL=https://lnk.codesfer.io\n" +
 		"# For more info: https://codesfer.io/self-hosting\n"
 
 	if dotenvPath != "" {
