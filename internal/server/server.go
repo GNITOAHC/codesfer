@@ -26,9 +26,9 @@ func Serve(flags ServeFlags) {
 	dotenv.Load(flags.Dotenv) // Default to .env in cmd/codesfer-server/main.go
 	log.Println("Environment variables loaded from", flags.Dotenv)
 
-	authDriver := dotenv.Get("AUTH_DB_DRIVER", "sqlite")
+	authDriver := sqlDriver(dotenv.Get("AUTH_DB_DRIVER", "sqlite"))
 	authSource := dotenv.Get("AUTH_DB_SOURCE", "file:auth.db?cache=shared")
-	indexDriver := dotenv.Get("INDEX_DB_DRIVER", "sqlite")
+	indexDriver := sqlDriver(dotenv.Get("INDEX_DB_DRIVER", "sqlite"))
 	indexSource := dotenv.Get("INDEX_DB_SOURCE", "file:object_storage.db?cache=shared")
 	backendDriver := dotenv.Get("OBJECT_STORAGE_DRIVER", "sqlite")
 
@@ -84,4 +84,15 @@ func Serve(flags ServeFlags) {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	log.Fatal(http.Serve(lis, handler))
+}
+
+// sqlDriver maps a configured DB driver to its database/sql driver name.
+func sqlDriver(name string) string {
+	switch name {
+	case "sqlite":
+		return "sqlite"
+	case "postgres", "postgresql", "pg", "pgx":
+		return "pgx"
+	}
+	panic(fmt.Sprintf("unknown db driver: %s (want sqlite|postgres)", name))
 }

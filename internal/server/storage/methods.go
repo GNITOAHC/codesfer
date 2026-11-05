@@ -47,6 +47,24 @@ func RemoveOrphanedObject() error {
 	return nil
 }
 
+// SweepExpiredObjects deletes expired records, then their objects. An object
+// whose delete fails is left for RemoveOrphanedObject.
+func SweepExpiredObjects(ctx context.Context) error {
+	paths, err := removeExpired()
+	if err != nil {
+		return err
+	}
+	for _, path := range paths {
+		if err := objectStorage.Delete(ctx, path); err != nil {
+			log.Printf("[expiry sweep] delete %s failed: %v", path, err)
+		}
+	}
+	if len(paths) > 0 {
+		log.Printf("[expiry sweep] removed %d expired object(s)", len(paths))
+	}
+	return nil
+}
+
 // DownloadRoute is the route for downloading an object
 //
 //	curl -OL http://base_url/download/<key>.zip
