@@ -3,13 +3,15 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/gnitoahc/codesfer/pkg/api"
 	"log"
 	"net"
 	"net/http"
+	"slices"
 )
 
-var reservedUsername = [3]string{"anon", "admin", "root"}
+var reservedUsername = []string{"anon", "admin", "root"}
 
 func AuthHandler(driver, source string) http.Handler {
 	// Setup user database
@@ -32,12 +34,10 @@ func AuthHandler(driver, source string) http.Handler {
 // username route will check if a username is taken
 func username(w http.ResponseWriter, r *http.Request) {
 	username := r.URL.Query().Get("username")
-	for _, reserved := range reservedUsername {
-		if username == reserved {
-			w.WriteHeader(http.StatusConflict)
-			w.Write([]byte("username forbidden"))
-			return
-		}
+	if slices.Contains(reservedUsername, username) {
+		w.WriteHeader(http.StatusConflict)
+		w.Write([]byte(ErrUsernameReserved))
+		return
 	}
 	exists := usernameExists(username)
 	if exists {
@@ -66,6 +66,10 @@ func register(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("[/auth/register] user %s is trying to register", data.Email)
 	err = createUser(data.Email, data.Password, data.Username)
+	if errors.Is(err, ErrUsernameReserved) || errors.Is(err, ErrUserAlreadyExists) {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

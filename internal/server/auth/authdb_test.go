@@ -29,6 +29,12 @@ func exerciseAuthDB(t *testing.T) {
 	if err := createUser("a@test.com", "pw", "alice"); err != ErrUserAlreadyExists {
 		t.Fatalf("duplicate createUser: got %v want ErrUserAlreadyExists", err)
 	}
+	if err := createUser("anon@test.com", "pw", "anon"); err != ErrUsernameReserved {
+		t.Fatalf("reserved createUser: got %v want ErrUsernameReserved", err)
+	}
+	if err := createUser("b@test.com", "pw", "alice"); err == nil {
+		t.Fatal("createUser with taken username: want insert error")
+	}
 	if _, err := getUser("nobody@test.com"); err != ErrUserNotFound {
 		t.Fatalf("getUser missing: got %v want ErrUserNotFound", err)
 	}

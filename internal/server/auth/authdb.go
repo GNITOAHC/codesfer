@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"slices"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -41,6 +42,7 @@ func (e AuthError) Error() string {
 const (
 	ErrUserAlreadyExists AuthError = "user already exists"
 	ErrUserNotFound      AuthError = "user not found"
+	ErrUsernameReserved  AuthError = "username forbidden"
 )
 
 func connect(driver, source string) error {
@@ -102,6 +104,11 @@ func checkPassword(password, hash string) bool {
 }
 
 func createUser(email, password, username string) error {
+	// Checked here, not only in GET /username: "anon" owns every anonymous
+	// upload, so an account by that name would control all of them.
+	if slices.Contains(reservedUsername, username) {
+		return ErrUsernameReserved
+	}
 	user, err := getUser(email)
 	if err != nil && err != ErrUserNotFound {
 		return err
@@ -113,11 +120,11 @@ func createUser(email, password, username string) error {
 	if err != nil {
 		return err
 	}
-	db.Exec(
+	_, err = db.Exec(
 		"INSERT INTO users (email, password, username, created_at) VALUES ($1, $2, $3, $4)",
 		email, hashed, username, time.Now().Unix(),
 	)
-	return nil
+	return err
 }
 
 func getUser(email string) (*User, error) {
