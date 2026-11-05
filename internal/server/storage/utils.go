@@ -89,9 +89,17 @@ func parseKey(key string) (string, string, string) {
 	}
 }
 
-// objPath returns the path to object inside object storage
-func objPath(username, path string) string {
-	return fmt.Sprintf("%s/%s", username, strings.Trim(path, "/"))
+// objPath returns a fresh path inside object storage for an upload of path:
+// <username>/<random>/<basename>. The random segment makes it unique per
+// upload, so concurrent uploads never share bytes and a failed upload can
+// delete its own object safely. The basename stays last because downloads
+// name the file after it.
+func objPath(username, path string) (string, error) {
+	id, err := generateID(objPathIDLen)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%s/%s", username, id, sanitizeFilename(strings.Trim(path, "/"))), nil
 }
 
 // uniqueIdxPath returns path, or path_1 / path_2 / ... when the user already has
@@ -116,48 +124,106 @@ func uniqueIdxPath(username, path string) (string, error) {
 	}
 }
 
-// saveRecord writes the index record for an uploaded object, generating a key
-// when the caller did not supply one. Returns the key in use.
-func saveRecord(key, username, path, password, objectPath, metadata, scope string, overwrite bool) (string, error) {
-	if key == "" {
-		uid, err := generateID(4)
-		if err != nil {
-			return "", errors.New("[save record] generate uid failed: " + err.Error())
-		}
-		key = uid
-	}
+const (
+	keyLen       = 4 // generated key length for signed-in uploads
+	anonKeyLen   = 8 // longer for anonymous uploads, which are all public
+	objPathIDLen = 8
+	keyRetries   = 3 // attempts at a free generated key
+)
 
-	var err error
-	if overwrite {
-		err = upsert(key, username, path, password, objectPath, metadata, scope)
-	} else {
-		err = insert(key, username, path, password, objectPath, metadata, scope)
-	}
+// uploadRecord is the index record for an uploaded object.
+type uploadRecord struct {
+	Key       string // empty: generate one of KeyLen characters
+	KeyLen    int    // 0 = keyLen
+	Username  string
+	IdxPath   string
+	Password  string
+	ObjPath   string
+	Meta      string
+	Scope     string
+	Overwrite bool
+	ExpiresAt int64 // unix seconds; 0 = never
+}
+
+// commitUpload records an object whose bytes are already in object storage
+// and returns the key in use. Every upload path writes bytes first, record
+// second: an orphaned object is invisible and RemoveOrphanedObject reclaims
+// it, while a record without bytes is a broken link. If the record cannot be
+// written, the object is deleted here (its path is unique to this upload).
+func commitUpload(ctx context.Context, rec uploadRecord) (string, error) {
+	key, err := saveRecord(rec)
 	if err != nil {
-		return "", errors.New("[save record] insert failed: " + err.Error())
+		if delErr := objectStorage.Delete(context.WithoutCancel(ctx), rec.ObjPath); delErr != nil {
+			log.Printf("[commit upload] cleanup of %s failed: %v", rec.ObjPath, delErr)
+		}
+		return "", err
 	}
 	return key, nil
 }
 
-// opupload uploads a file to object storage and inserts a record to the index.
-//
-// the record is written before the bytes land, so a failed upload leaves a dangling
-// index row. The chunked path does the reverse. Unify only with a matching cleanup job
-// for orphaned rows.
-func opupload(ctx context.Context, file io.Reader, key, username, password, path string, overwrite bool, metadata, scope string) (string, error) {
-	objectPath := objPath(username, path)
+// saveRecord writes rec, generating a key when none was given and retrying
+// with a new one if it collides. A taken key or filename is reported as
+// ErrKeyTaken / ErrKeyOwnedByAnotherUser / ErrPathTaken.
+func saveRecord(rec uploadRecord) (string, error) {
+	generate := rec.Key == ""
+	if rec.KeyLen == 0 {
+		rec.KeyLen = keyLen
+	}
+	for attempt := 1; ; attempt++ {
+		key := rec.Key
+		if generate {
+			var err error
+			if key, err = generateID(rec.KeyLen); err != nil {
+				return "", fmt.Errorf("[save record] generate key failed: %w", err)
+			}
+		}
 
-	key, err := saveRecord(key, username, path, password, objectPath, metadata, scope, overwrite)
-	if err != nil {
+		var err error
+		if rec.Overwrite {
+			err = upsert(key, rec.Username, rec.IdxPath, rec.Password, rec.ObjPath, rec.Meta, rec.Scope, rec.ExpiresAt)
+		} else {
+			err = insert(key, rec.Username, rec.IdxPath, rec.Password, rec.ObjPath, rec.Meta, rec.Scope, rec.ExpiresAt)
+		}
+		if err == nil {
+			return key, nil
+		}
+		if errors.Is(err, ErrKeyOwnedByAnotherUser) {
+			return "", err
+		}
+
+		// Name the constraint that failed without parsing driver errors.
+		if taken, _ := haveFile(rec.Username, rec.IdxPath); taken && !rec.Overwrite {
+			return "", fmt.Errorf("%w: %s", ErrPathTaken, rec.IdxPath)
+		}
+		if taken, _ := keyExists(key); taken {
+			if generate && attempt < keyRetries {
+				continue
+			}
+			return "", fmt.Errorf("%w: %s", ErrKeyTaken, key)
+		}
+		return "", fmt.Errorf("[save record] insert failed: %w", err)
+	}
+}
+
+// recordStatus maps a saveRecord error to its HTTP status.
+func recordStatus(err error) int {
+	if errors.Is(err, ErrKeyTaken) || errors.Is(err, ErrKeyOwnedByAnotherUser) || errors.Is(err, ErrPathTaken) {
+		return http.StatusConflict
+	}
+	return http.StatusInternalServerError
+}
+
+// opupload stores file in object storage, then records it via commitUpload.
+// rec.ObjPath is filled in here.
+func opupload(ctx context.Context, file io.Reader, rec uploadRecord) (string, error) {
+	var err error
+	if rec.ObjPath, err = objPath(rec.Username, rec.IdxPath); err != nil {
 		return "", err
 	}
-
-	// Only upload after the record is stored successfully.
-	if _, err := objectStorage.Put(ctx, objectPath, file, -1, "", nil); err != nil {
+	if _, err := objectStorage.Put(ctx, rec.ObjPath, file, -1, "", nil); err != nil {
 		return "", errors.New("[op upload] [put] upload failed: " + err.Error())
 	}
-
-	return key, nil
+	return commitUpload(ctx, rec)
 }
 
 func opremove(ctx context.Context, path string) error {

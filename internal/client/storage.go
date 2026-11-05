@@ -94,7 +94,9 @@ func Push(form PushForm, zipFile string) (*api.UploadResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+ReadSessionID())
+	if sessionID := ReadSessionID(); sessionID != "" { // none: anonymous upload
+		req.Header.Set("Authorization", "Bearer "+sessionID)
+	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// Send request

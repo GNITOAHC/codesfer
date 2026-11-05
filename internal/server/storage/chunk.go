@@ -141,9 +141,18 @@ func uploadChunk(w http.ResponseWriter, r *http.Request, username string) {
 		return
 	}
 
-	key, err := saveRecord(session.key, session.username, session.path, session.password, session.objPath, session.meta, session.scope, session.force)
+	key, err := commitUpload(r.Context(), uploadRecord{
+		Key:       session.key,
+		Username:  session.username,
+		IdxPath:   session.path,
+		Password:  session.password,
+		ObjPath:   session.objPath,
+		Meta:      session.meta,
+		Scope:     session.scope,
+		Overwrite: session.force,
+	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), recordStatus(err))
 		return
 	}
 
@@ -208,11 +217,16 @@ func acquireSession(ctx context.Context, uploadID, username string, chunkIndex, 
 		return nil, err
 	}
 
+	objectPath, err := objPath(username, path)
+	if err != nil {
+		return nil, err
+	}
+
 	session := &chunkSession{
 		total:    totalChunks,
 		received: make(map[int]bool),
 		parts:    make(map[int32]object.CompletedPart),
-		objPath:  objPath(username, path),
+		objPath:  objectPath,
 		lastSeen: time.Now(),
 		inFlight: 1,
 		username: username,
