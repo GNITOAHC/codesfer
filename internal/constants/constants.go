@@ -23,4 +23,8 @@ const (
 	// AnonUploadWindow.
 	AnonUploadLimit  = 10
 	AnonUploadWindow = time.Hour
+
+	// AnonURLTTL is how long an anonymous short url lives before the expiry
+	// sweep deletes it.
+	AnonURLTTL = 7 * 24 * time.Hour
 )

@@ -11,7 +11,7 @@ import (
 	"slices"
 )
 
-var reservedUsername = []string{"anon", "admin", "root"}
+var reservedUsername = []string{AnonUsername, "admin", "root"}
 
 func AuthHandler(driver, source string) http.Handler {
 	// Setup user database

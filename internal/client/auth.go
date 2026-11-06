@@ -33,7 +33,7 @@ func ReadSessionID() string {
 		return ""
 	}
 
-	sessionFile := filepath.Join(home, configDir, sessionFile)
+	sessionFile := filepath.Join(home, ConfigDir, SessionFile)
 	if err := makePaths(filepath.Dir(sessionFile)); err != nil {
 		log.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func WriteSessionID(sessionID string) error {
 		return err
 	}
 
-	sessionFile := filepath.Join(home, configDir, sessionFile)
+	sessionFile := filepath.Join(home, ConfigDir, SessionFile)
 	if err := makePaths(filepath.Dir(sessionFile)); err != nil {
 		log.Fatal(err)
 	}

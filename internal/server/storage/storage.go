@@ -15,8 +15,10 @@ import (
 
 	"github.com/gnitoahc/codesfer/internal/constants"
 	"github.com/gnitoahc/codesfer/internal/server/auth"
+	"github.com/gnitoahc/codesfer/internal/server/reply"
 	"github.com/gnitoahc/codesfer/pkg/api"
 	"github.com/gnitoahc/codesfer/pkg/object"
+	"github.com/gnitoahc/codesfer/pkg/randid"
 )
 
 var objectStorage object.ObjectStorage
@@ -24,6 +26,10 @@ var objectStorage object.ObjectStorage
 // maxUploadMemory caps how much of a multipart request body is held in RAM;
 // anything larger spills to a temp file. It is not an upload size limit.
 const maxUploadMemory = 32 << 20
+
+// anonFormSlack is headroom over the file size cap for the multipart framing
+// and text fields around it.
+const anonFormSlack = 1 << 20
 
 func StorageHandler(driver, source string, objStorage object.ObjectStorage) http.Handler {
 	// Setup indexdb
@@ -37,29 +43,15 @@ func StorageHandler(driver, source string, objStorage object.ObjectStorage) http
 
 	storageHandler := http.NewServeMux()
 	storageHandler.HandleFunc("POST /upload", upload) // anonymous allowed
-	storageHandler.HandleFunc("POST /upload/chunk", requireUser("upload", uploadChunk))
+	storageHandler.HandleFunc("POST /upload/chunk", auth.RequireUser("upload", uploadChunk))
 	storageHandler.HandleFunc("GET /download", download)
-	storageHandler.HandleFunc("GET /list", requireUser("list", func(w http.ResponseWriter, r *http.Request, _ string) { list(w, r) }))
-	storageHandler.HandleFunc("DELETE /remove", requireUser("remove", func(w http.ResponseWriter, r *http.Request, username string) {
+	storageHandler.HandleFunc("GET /list", auth.RequireUser("list", func(w http.ResponseWriter, r *http.Request, _ string) { list(w, r) }))
+	storageHandler.HandleFunc("DELETE /remove", auth.RequireUser("remove", func(w http.ResponseWriter, r *http.Request, username string) {
 		remove(w, r, username, r.URL.Query().Get("key"))
 	}))
 	storageHandler.HandleFunc("GET /info", info)
-	storageHandler.HandleFunc("PATCH /settings", requireUser("change settings", updateSettings))
+	storageHandler.HandleFunc("PATCH /settings", auth.RequireUser("change settings", updateSettings))
 	return storageHandler
-}
-
-// requireUser rejects unauthenticated requests and passes the caller's username
-// (set by the auth middleware) to the handler. action names the operation in
-// the error message.
-func requireUser(action string, handler func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		username := r.Header.Get("X-Username")
-		if username == "" {
-			http.Error(w, "unauthorized, only authorized users can "+action, http.StatusUnauthorized)
-			return
-		}
-		handler(w, r, username)
-	}
 }
 
 func list(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +94,7 @@ func upload(w http.ResponseWriter, r *http.Request) {
 	username := r.Header.Get("X-Username")
 	anonymous := username == ""
 	if anonymous {
-		if !allowAnonUpload(auth.ClientIP(r), time.Now()) {
+		if !auth.AllowAnon(auth.ClientIP(r), time.Now()) {
 			http.Error(w, "too many anonymous uploads, try again later or log in", http.StatusTooManyRequests)
 			return
 		}
@@ -134,7 +126,7 @@ func upload(w http.ResponseWriter, r *http.Request) {
 		Meta:     r.FormValue("meta"),
 	}
 	if anonymous {
-		// Everyone shares anonUsername, so nothing here may let one anonymous
+		// Everyone shares auth.AnonUsername, so nothing here may let one anonymous
 		// upload claim or replace another's: no custom key, no overwrite.
 		// Keep only the last segment of the requested name: the random id
 		// prefix is what keeps it unique.
@@ -145,12 +137,12 @@ func upload(w http.ResponseWriter, r *http.Request) {
 		if name == "" || name == "." || name == ".." {
 			name = "file"
 		}
-		id, err := generateID(objPathIDLen)
+		id, err := randid.New(objPathIDLen)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		rec.Username = anonUsername
+		rec.Username = auth.AnonUsername
 		rec.Key = ""
 		rec.KeyLen = anonKeyLen
 		rec.IdxPath = id + "/" + name // unique by construction, skips uniqueIdxPath
@@ -210,7 +202,7 @@ func download(w http.ResponseWriter, r *http.Request) {
 
 	if status, msg, gate := checkAccess(obj, currentUser, pwd); status != 0 {
 		log.Printf("  Access denied (%s), returning %d", gate, status)
-		writeJSONError(w, status, msg, gate)
+		reply.Error(w, status, msg, gate)
 		return
 	}
 
@@ -251,7 +243,7 @@ func download(w http.ResponseWriter, r *http.Request) {
 func remove(w http.ResponseWriter, r *http.Request, username, key string) {
 	log.Printf("[/storage/remove] user %s is trying to remove object, key: %s", username, key)
 	if key == "" {
-		writeJSONError(w, http.StatusBadRequest, "missing key", "")
+		reply.Error(w, http.StatusBadRequest, "missing key", "")
 		return
 	}
 
@@ -259,11 +251,11 @@ func remove(w http.ResponseWriter, r *http.Request, username, key string) {
 	path, err := removeByID(username, key)
 	if errors.Is(err, sql.ErrNoRows) {
 		log.Printf("  username: %s, key: %s; not found in indexdb", username, key)
-		writeJSONError(w, http.StatusNotFound, fmt.Sprintf("key %s not found for user %s", key, username), "")
+		reply.Error(w, http.StatusNotFound, fmt.Sprintf("key %s not found for user %s", key, username), "")
 		return
 	} else if err != nil {
 		log.Printf("  username: %s, key: %s; error removing from indexdb: %v", username, key, err)
-		writeJSONError(w, http.StatusInternalServerError, "error removing key: "+err.Error(), "")
+		reply.Error(w, http.StatusInternalServerError, "error removing key: "+err.Error(), "")
 		return
 	}
 	log.Printf("  username: %s, key: %s, path: %s; removed from indexdb", username, key, path)
@@ -271,7 +263,7 @@ func remove(w http.ResponseWriter, r *http.Request, username, key string) {
 	// Then, remove from object storage
 	if err := opremove(r.Context(), path); err != nil {
 		log.Printf("  key: %s, path: %s; error removing from object storage: %v", key, path, err)
-		writeJSONError(w, http.StatusInternalServerError, "error removing from object storage: "+err.Error(), "")
+		reply.Error(w, http.StatusInternalServerError, "error removing from object storage: "+err.Error(), "")
 		return
 	}
 	log.Printf("  key: %s, path: %s; removed from object storage", key, path)
@@ -402,7 +394,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 
 	if status, msg, gate := checkAccess(obj, currentUser, pwd); status != 0 {
 		log.Printf("  Access denied (%s), returning %d", gate, status)
-		writeJSONError(w, status, msg, gate)
+		reply.Error(w, status, msg, gate)
 		return
 	}
 

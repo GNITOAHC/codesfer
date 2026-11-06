@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gnitoahc/codesfer/internal/server/auth"
 	"github.com/gnitoahc/codesfer/internal/server/storage"
+	"github.com/gnitoahc/codesfer/internal/server/url"
 	"github.com/gnitoahc/codesfer/pkg/cron"
 	"github.com/gnitoahc/codesfer/pkg/object"
 	"github.com/gnitoahc/codesfer/pkg/object/r2"
@@ -31,6 +32,7 @@ func Serve(flags ServeFlags) {
 	indexDriver := sqlDriver(dotenv.Get("INDEX_DB_DRIVER", "sqlite"))
 	indexSource := dotenv.Get("INDEX_DB_SOURCE", "file:object_storage.db?cache=shared")
 	backendDriver := dotenv.Get("OBJECT_STORAGE_DRIVER", "sqlite")
+	linkBase := dotenv.Get("LINK_BASE_URL", "https://lnk.codesfer.io")
 
 	var backend object.ObjectStorage
 	switch backendDriver {
@@ -67,6 +69,10 @@ func Serve(flags ServeFlags) {
 	handle(mux, "/auth/", http.StripPrefix("/auth", auth.AuthHandler(authDriver, authSource)))
 	handle(mux, "/storage/", http.StripPrefix("/storage", storage.StorageHandler(indexDriver, indexSource, backend)), authMiddleware)
 	handle(mux, "GET /download/{key}", http.HandlerFunc(storage.DownloadRoute))
+	handle(mux, "/url/", http.StripPrefix("/url", url.Handler(indexDriver, indexSource, linkBase)), authMiddleware)
+	for _, pattern := range []string{"GET /r/{handle}", "POST /r/{handle}", "GET /u/{username}/{custom}", "POST /u/{username}/{custom}"} {
+		handle(mux, pattern, http.HandlerFunc(url.RedirectRoute))
+	}
 
 	handler := chain(mux, corsMiddleware(allowedOrigins()))
 	// Mux definition end

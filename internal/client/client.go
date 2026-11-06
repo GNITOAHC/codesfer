@@ -4,16 +4,17 @@ package client
 import "time"
 
 const (
-	configDir     = ".codesfer" // This should be in the user's home directory
-	sessionFile   = "session"   // This should be in the config directory
 	baseURLFile   = "base_url"
 	clientURLFile = "client_url"
 )
 
 var (
-	BaseURL = "https://api.codesfer.io" // overwrite with -ldflags -X codesfer/internal/client.BaseURL=<default URL>
+	ConfigDir   = ".codesfer" // This should be in the user's home directory
+	SessionFile = "session"   // This should be in the config directory
+
+	BaseURL = "https://api.codesfer.io" // overwrite with -ldflags -X github.com/gnitoahc/codesfer/internal/client.BaseURL=<default URL>
 	// frontend that proxies downloads at /d/<key>
-	// overwrite with -ldflags -X codesfer/internal/client.ClientURL=<default URL>
+	// overwrite with -ldflags -X github.com/gnitoahc/codesfer/internal/client.ClientURL=<default URL>
 	// If ClientURL is empty string, it'll fallback to BaseURL.
 	ClientURL = "https://codesfer.io"
 )

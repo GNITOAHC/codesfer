@@ -2,10 +2,9 @@ package storage
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gnitoahc/codesfer/pkg/randid"
 	"io"
 	"log"
 	"net/http"
@@ -14,7 +13,7 @@ import (
 
 // checkAccess decides whether username (empty = anonymous) may read obj with
 // the supplied password. Returns status 0 when allowed, otherwise the HTTP
-// status plus msg/gate for writeJSONError; the gate ("auth" or "password")
+// status plus msg/gate for reply.Error; the gate ("auth" or "password")
 // tells the frontend which prompt to show. Owner-scoped objects are reported
 // as 404 to other users, and the owner bypasses the password gate.
 func checkAccess(obj *Object, username, password string) (status int, msg, gate string) {
@@ -36,29 +35,6 @@ func checkAccess(obj *Object, username, password string) (status int, msg, gate 
 		return http.StatusUnauthorized, "password required", "password"
 	}
 	return 0, "", ""
-}
-
-func writeJSONError(w http.ResponseWriter, status int, msg, gate string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	resp := map[string]string{"error": msg}
-	if gate != "" {
-		resp["gate"] = gate
-	}
-	json.NewEncoder(w).Encode(resp)
-}
-
-// generateID generates a random string of length n
-func generateID(n int) (string, error) {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	for i := range n {
-		b[i] = chars[int(b[i])%len(chars)]
-	}
-	return string(b), nil
 }
 
 // findObject resolves a client-facing key (<uid> || <username>/<uid> || <username>/<path>)
@@ -95,7 +71,7 @@ func parseKey(key string) (string, string, string) {
 // delete its own object safely. The basename stays last because downloads
 // name the file after it.
 func objPath(username, path string) (string, error) {
-	id, err := generateID(objPathIDLen)
+	id, err := randid.New(objPathIDLen)
 	if err != nil {
 		return "", err
 	}
@@ -173,7 +149,7 @@ func saveRecord(rec uploadRecord) (string, error) {
 		key := rec.Key
 		if generate {
 			var err error
-			if key, err = generateID(rec.KeyLen); err != nil {
+			if key, err = randid.New(rec.KeyLen); err != nil {
 				return "", fmt.Errorf("[save record] generate key failed: %w", err)
 			}
 		}

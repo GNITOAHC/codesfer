@@ -43,6 +43,7 @@ var pullCmd = &cobra.Command{
 	Use:   "pull [code]",
 	Short: "Receive a code snippet",
 	Long:  `Receive a code snippet. This command allows you to receive a code snippet from another user.`,
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		cli.Pull(pullCmdFlags, args[0])
 	},
@@ -171,6 +172,59 @@ var inspectCmd = &cobra.Command{
 	},
 }
 
+var urlCmd = &cobra.Command{
+	Use:   "url",
+	Short: "Create and manage short urls",
+}
+
+// {LINK_BASE_URL}/r/<handle>                  short url (always generated)
+// {LINK_BASE_URL}/u/<username>/<custom_url>   custom short url (-c, login required)
+// LINK_BASE_URL is set on the server and defaults to https://lnk.codesfer.io.
+// Anonymous urls expire after a while; urls created when logged in are
+// permanent until their owner removes them.
+var urlNewCmdFlags cli.URLNewFlags
+var urlNewCmd = &cobra.Command{
+	Use:   "new [long_url]",
+	Short: "Generate a short url",
+	Long: `Generate a short url for an http(s) url.
+Without a login the url is anonymous and expires after 7 days.`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cli.URLNew(urlNewCmdFlags, args[0])
+	},
+}
+
+var urlListCmd = &cobra.Command{
+	Use:     "list",
+	Short:   "List all short urls created by you",
+	Aliases: []string{"ls"},
+	Run: func(cmd *cobra.Command, args []string) {
+		cli.URLList()
+	},
+}
+
+var urlRemoveCmd = &cobra.Command{
+	Use:     "remove [handle1] [handle2] ...",
+	Short:   "Remove short urls",
+	Long:    "Remove short urls you own. For a custom url, prefix it with your username, e.g. 'username/custom_url'.",
+	Aliases: []string{"rm"},
+	Args:    cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cli.URLRemove(args)
+	},
+}
+
+var urlGetCmdFlags cli.URLGetFlags
+var urlGetCmd = &cobra.Command{
+	Use:   "get [handle]",
+	Short: "Show a short url's target and metadata",
+	Long:  "Show a short url's target and metadata. For a custom url, use 'username/custom_url'.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cli.URLGet(urlGetCmdFlags, args[0])
+	},
+}
+
 func main() {
 	// =============
 	// pushCmd flags
@@ -230,12 +284,27 @@ func main() {
 		&inspectCmdFlags.Level, "level", "l", 2, "Tree display depth (0 for unlimited)",
 	)
 
+	// ============
+	// urlCmd flags
+	// ============
+	urlNewCmd.Flags().StringVarP(
+		&urlNewCmdFlags.Custom, "custom", "c", "",
+		"Custom url under your username (login required): a letter, then 2-31 letters, digits or underscores",
+	)
+	urlNewCmd.Flags().StringVarP(
+		&urlNewCmdFlags.Pass, "pass", "p", "", "Password to protect the short url",
+	)
+	urlGetCmd.Flags().StringVarP(
+		&urlGetCmdFlags.Pass, "pass", "p", "", "Password for protected urls",
+	)
+
 	// ===========
 	// subcommands
 	// ===========
 	authCmd.AddCommand(authLoginCmd, authLogoutCmd, authRegisterCmd)
 	configCmd.AddCommand(configSetCmd, configGetCmd)
-	rootCmd.AddCommand(pushCmd, listCmd, pullCmd, removeCmd, accountCmd, authCmd, configCmd, inspectCmd, editCmd)
+	urlCmd.AddCommand(urlNewCmd, urlListCmd, urlRemoveCmd, urlGetCmd)
+	rootCmd.AddCommand(pushCmd, listCmd, pullCmd, removeCmd, accountCmd, authCmd, configCmd, inspectCmd, editCmd, urlCmd)
 
 	rootCmd.Execute()
 }
