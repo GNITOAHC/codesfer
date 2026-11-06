@@ -18,14 +18,14 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := makePaths(filepath.Join(home, configDir)); err != nil {
+	if err := makePaths(filepath.Join(home, ConfigDir)); err != nil {
 		log.Fatal(err)
 	}
 
-	if u := readURLOverride(filepath.Join(home, configDir, baseURLFile)); u != "" {
+	if u := readURLOverride(filepath.Join(home, ConfigDir, baseURLFile)); u != "" {
 		BaseURL = u
 	}
-	if u := readURLOverride(filepath.Join(home, configDir, clientURLFile)); u != "" {
+	if u := readURLOverride(filepath.Join(home, ConfigDir, clientURLFile)); u != "" {
 		ClientURL = u
 	}
 }
@@ -46,7 +46,7 @@ func configFilePath(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, configDir, name), nil
+	return filepath.Join(home, ConfigDir, name), nil
 }
 
 // SetConfig validates value as a URL and writes it to the key's override file.
