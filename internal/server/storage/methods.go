@@ -72,7 +72,7 @@ func SweepExpiredObjects(ctx context.Context) error {
 //	curl -OL http://base_url/download/<key>.zip
 //	wget http://base_url/download/<key>.zip
 func DownloadRoute(w http.ResponseWriter, r *http.Request) {
-	key := strings.TrimRight(r.PathValue("key"), ".zip")
+	key := strings.TrimSuffix(r.PathValue("key"), ".zip")
 	log.Printf("[/download] anonymous user is trying to download object, key: %s", key)
 
 	obj, err := get(key)

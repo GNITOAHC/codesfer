@@ -53,6 +53,7 @@ func TestDownloadRouteGates(t *testing.T) {
 	seedObject(t, "pwd", "alice", "s3cret", ScopePublic, true)
 	seedObject(t, "gated", "alice", "", ScopeAuthenticated, true)
 	seedObject(t, "broken", "alice", "", ScopePublic, false) // index entry, no backend object
+	seedObject(t, "zip", "alice", "", ScopePublic, true)     // key made of ".zip" chars
 
 	cases := []struct {
 		name       string
@@ -70,6 +71,8 @@ func TestDownloadRouteGates(t *testing.T) {
 		{"6 auth-gated session ignored", "/download/gated.zip", "Bearer valid-alice", 401, "login required", "auth"},
 		{"7 auth-gated no header", "/download/gated.zip", "", 401, "login required", "auth"},
 		{"8 backend read fail", "/download/broken.zip", "", 500, "internal error", ""},
+		{"9 key without .zip", "/download/zip", "", 200, "", ""},
+		{"10 key of .zip chars", "/download/zip.zip", "", 200, "", ""},
 	}
 
 	for _, tc := range cases {
