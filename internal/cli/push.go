@@ -146,6 +146,11 @@ func Push(flags PushFlags, args []string) {
 	}
 
 	fmt.Printf("ID: %s\n", resp.Uid)
+	url := client.BaseURL + "/download/" + resp.Uid
+	fmt.Printf("URL: %s%s%s\n", colorYellow, url, colorReset)
+	if copyToClipboard(url) {
+		fmt.Println("(URL copied to clipboard)")
+	}
 	fmt.Printf("Path: %s\n", resp.Path)
 	if resp.ExpiresAt > 0 {
 		fmt.Printf("Expires: %s\n", time.Unix(resp.ExpiresAt, 0).Format(time.DateTime))
