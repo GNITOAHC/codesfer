@@ -4,7 +4,18 @@ package cli
 import (
 	"os/exec"
 	"strings"
+
+	"github.com/gnitoahc/codesfer/internal/client"
 )
+
+// shareLink returns the download link for key: the frontend when it's up,
+// otherwise the API server.
+func shareLink(key string) string {
+	if client.ClientURLHealthy() {
+		return client.ClientURL + "/d/" + key
+	}
+	return client.BaseURL + "/download/" + key + ".zip"
+}
 
 // copyToClipboard tries the common clipboard tools; false if none worked.
 func copyToClipboard(s string) bool {

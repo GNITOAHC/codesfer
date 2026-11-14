@@ -41,7 +41,7 @@ func URLNew(flags URLNewFlags, target string) {
 		copied = link.CustomURL
 	}
 	if copyToClipboard(copied) {
-		fmt.Printf("(%s copied to clipboard)\n", copied)
+		fmt.Printf("(copied to clipboard)\n")
 	}
 	if link.ExpiresAt != 0 {
 		fmt.Printf("Expires at %s. Login to create permanent urls.\n", time.Unix(link.ExpiresAt, 0).Format(urlTimeFormat))
